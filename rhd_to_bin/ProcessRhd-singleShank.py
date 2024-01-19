@@ -225,6 +225,8 @@ if __name__ == "__main__":
     # variable to calculate shift
     ### @TODO test if this works on the 10s generated pure sine wave data
     ### @TODO ask user how many channels there are among all the shanks. Currently assumes 256 ch's
+    ### @TODO is the noise introduced from the fft + dephase & ifft worth the avg(correction) of 1/500,000 of a second?
+    ### @TODO is the time to do this correction worth it. Rajat's response suggested results are the same.
     shift = np.tile(np.linspace(-1,0,32),8)
     
     # this need to be changed for each animal
