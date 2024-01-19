@@ -3,7 +3,8 @@
 # Michael Gibson 23 April 2015
 # Modified Adrian Foy Sep 2018
 
-import sys, struct
+import sys
+import struct
 import numpy as np
 
 def read_one_data_block(data, header, indices, fid):
