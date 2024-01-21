@@ -123,6 +123,9 @@ if __name__ == "__main__":
             amp_data_n = np.array(amp_data_n)
             shifted_path = os.path.join(sub_save_dir,filename[:-4]+'_shifted.bin')
             arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=amp_data_n.T.shape)
+            ### @TODO user input() outside of this long loop to allow specifying how the channels are split (eg VC vs PPC)
+            # arr1 = np.memmap(os.path.join(opdirname, filename[:-4]+'_VC_shifted.bin'), dtype='int16', mode='w+', shape=amp_data_n[:256,:].T.shape)
+            # arr1[:] = amp_data_n[:256,:].T
             arr[:] = amp_data_n.T
             del arr
             if saveLFP:
