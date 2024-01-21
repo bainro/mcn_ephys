@@ -171,7 +171,7 @@ if __name__ == "__main__":
             if saveLFP:
                 # convert microvolts for lfp conversion
                 amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
-                print("REAL FS = " + str(1 ./ np.nanmedian(np.diff(ts))))
+                print("REAL FS = " + str(1. / np.nanmedian(np.diff(ts))))
                 starts = ts[-1]+1 ./ fs
                 size = amp_data_n.shape[1]
                 if i == 0:
