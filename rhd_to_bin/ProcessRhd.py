@@ -41,7 +41,7 @@ def channel_shift(data, sample_shifts):
 if __name__ == "__main__":
     subsample_factors = [5, 6]
     subsample_total = numpy.prod(subsample_factors)
-    use_default = input(f"Use our default downsampling factor of {subsample_total}? (y/n) ")
+    use_default = input(f"Use the default downsampling factor of {subsample_total}? (y/n) ")
     use_default= ('y' in use_default) or ('Y' in use_default)
     if not default_factor:
         subsample_total = int(input("What downsampling factor would you like to use then? "))
@@ -94,30 +94,33 @@ if __name__ == "__main__":
         else:
             del analogIN
         amp_data_n  = []
-        for c in range(amp_data.shape[0]):
-            amp_data_n.append(np.array(channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))[0] - 32768, dtype=np.int16))
+        for c in range(num_ch):
+            tmp = channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))
+            tmp2 = np.array(tmp[0] - 32768, dtype=np.int16)
+            amp_data_n.append(tmp2)
         del amp_data
         amp_data_n = np.array(amp_data_n)
-        arr = np.memmap(os.path.join(save_dir,filename[:-4]+'_shifted.bin'), dtype='int16', mode='w+', shape=amp_data_n.T.shape)
+        shifted_path = os.path.join(save_dir,filename[:-4]+'_shifted.bin')
+        arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=amp_data_n.T.shape)
         arr[:] = amp_data_n.T
         del arr
         if saveLFP:
             # convert microvolts for lfp conversion
             amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
-            print("REAL FS = " + str(1./np.nanmedian(np.diff(ts))))
+            print("REAL FS = " + str(1 ./ np.nanmedian(np.diff(ts))))
             starts = ts[-1]+1 ./ fs
             size = amp_data_n.shape[1]
             if i == 0:
                 startind = 0
-                ind = np.arange(0,size,subsample_factor)
+                ind = np.arange(0, size, subsample_factor)
             else:
                 startind = np.where(ts>=starts)[0][0]
-                ind = np.arange(startind,size,subsample_factor)
+                ind = np.arange(startind, size, subsample_factor)
             amp_data_n = downsample(subsample_factors, amp_data_n[:,startind:])
             amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
             dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
             amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
-            del amp_data_n
+        del amp_data_n
 
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
