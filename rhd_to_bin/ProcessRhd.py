@@ -81,13 +81,21 @@ if __name__ == "__main__":
     saveAnalog = input('Would you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
 
-    # ask for this user input before the long loop below
     print()
     animals = []
     for d in dirs:
         name = input(f"What is the animal's ID for {d}?")
         animals.append(name)
 
+    files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
+    amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
+    num_ch = amp_data.shape[0]
+    print()
+    multi_roi = input("hi")
+    if multi_roi:
+        print("makes some more lists!")
+
+    # ask for user inputs before this long loop if possible!
     overwrite = None
     for animal_id, d in zip(animals, dirs):
         sub_save_dir = os.path.join(save_dir, d)
@@ -107,9 +115,6 @@ if __name__ == "__main__":
             if overwrite == False:
                 continue               
         
-        files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
-        amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
-        num_ch = amp_data.shape[0]
         # variable to calculate shift
         shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
     
