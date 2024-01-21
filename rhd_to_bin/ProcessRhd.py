@@ -49,17 +49,20 @@ if __name__ == "__main__":
         if subsample_total > 13:
             power = math.ceil(subsample_total / 13)
             help_txt = f"Downsampling by this much requires smaller steps. " 
-            help_txt += f"List {power} factors separated by spaces that multiply to {subsample_total}. "
-            help_txt += 'E.g. "5, 6" for a downsampling factor of 30'
-            subsample_factors = input(help_txt).split().replace("'", "").replace('"', '')
+            help_txt += f"List {power} factors separated by commas that multiply to {subsample_total}. "
+            help_txt += 'E.g. 5, 6 for a downsampling factor of 30'
+            subsample_factors = input(help_txt).split(',')
             subsample_factors = [int(x) for x in subsample_factors]
             tot = np.prod(subsample_factors)
             err_txt = f'{subsample_factors} multiply to {tot}, not {subsample_total}'
             assert tot == subsample_total, err_txt
         
-    ### @TODO if not found then input(rhd_directoryS) and input(save_dir), make_dirs(save_dir, exist_ok=True)
-    dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
-    rawfname = 'ET2_211228_174841'
+    ### @TODO input(rhd_directoryS) and input(save_dir), make_dirs(save_dir, exist_ok=True)
+    dirs_txt = "You can specify multiple directories to process. " 
+    dirs_txt += ". "
+    dirs = input(dir_txt).replace(", ", ",").split(',')
+    dirs = [int(x) for x in dirs]
+    
     save_dir = input('Where would you like to save the outputs?')
     os.makedirs(save_dir, exist_ok=True)
     save_dir = os.path.abspath(save_dir)
@@ -73,13 +76,17 @@ if __name__ == "__main__":
     for d in dirs:
         name = input(f"What's the animal's ID in {d}?")
         animals.append(name)
-    
+
+    overwrite = None
     for animal_id, d in zip(animals, dirs):
         sub_save_dir = os.path.join(save_dir, d)
+        ### @TODO create this child save dir
         lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
         lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
         digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
         analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')
+        ### @TODO check if it already exists and has an lfp_filename. Prompt for overwriting.
+            # check overwrite that's set right outside the loop
     
         files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
         amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
@@ -135,3 +142,5 @@ if __name__ == "__main__":
             np.save(lfp_filename, amp_data_mmap)
             np.save(lfpts_filename, amp_ts_mmap)
             np.save(digIn_filename, dig_in)
+
+### @TODO combine all .bin ???
