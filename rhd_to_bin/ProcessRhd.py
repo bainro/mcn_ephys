@@ -58,7 +58,7 @@ if __name__ == "__main__":
             assert tot == subsample_total, err_txt
         
     ### @TODO try to autodetect .rhd files in the current directory. If found, list them
-    ### @TODO if not found then input(rhd_directory) and input(save_dir), make_dirs(save_dir, exist_ok=True)
+    ### @TODO if not found then input(rhd_directoryS) and input(save_dir), make_dirs(save_dir, exist_ok=True)
     dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
     rawfname = 'ET2_211228_174841'
     save_dir = input('Where would you like to save the output?')
