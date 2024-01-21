@@ -167,9 +167,10 @@ def read_data(filename):
 
         # If the software notch filter was selected during the recording, apply the
         # same notch filter to amplifier data here.
-        if False: #header['notch_filter_frequency'] > 0:
+        apply_notch = 'notch_filter_frequency' in header.keys()
+        apply_notch = apply_notch and header['notch_filter_frequency'] > 0
+        if apply_notch:
             print('Applying notch filter...')
-
             print_increment = 10
             percent_done = print_increment
             for i in range(header['num_amplifier_channels']):
@@ -227,87 +228,65 @@ if __name__ == "__main__":
     dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
     rawfname = 'ET2_211228_174841'
     save_dir = input('Where would you like to save the output?')
-    ### @TODO ask user if they want to save LFP & Analog (what's the diff, just downsampling?)
+    os.makedirs(save_dir, exist_ok=True)
+    save_dir = os.path.abspath(save_dir)
+    ### @TODO LFP & Analog: what's the diff, just downsampling?
     saveLFP = input('Would you like to save the LFP?')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
     saveAnalog = input('Would you like to save the analog signal?')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
 
     aname = input("What's the animal's ID / name?")
-    lfp_filename = os.path.join(dirname, aname+'-lfp.npy')
-    lfpts_filename = os.path.join(dirname,aname+'-lfpts.npy')
-    digIn_filename = os.path.join(dirname, aname+'-digIn.npy')
-    analogIn_filename = os.path.join(dirname, aname+'-analogIn.npy')
-    analog_in = None
-    dig_in = None
-    amp_data_mmap = None
-    amp_ts_mmap = None
-    files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
+    lfp_filename = os.path.join(save_dir, aname+'-lfp.npy')
+    lfpts_filename = os.path.join(save_dir, aname+'-lfpts.npy')
+    digIn_filename = os.path.join(save_dir, aname+'-digIn.npy')
+    analogIn_filename = os.path.join(save_dir, aname+'-analogIn.npy')
 
+    files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
     amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
     num_ch = amp_data.shape[0]
     shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
     
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
-        ### @TODO figure out if the case redundancy can be reduced
-        if i==0:
-            print("\n ***** Loading: " + filename)
-            ts, amp_data, dig_in, analog_in, fs = read_data(os.path.join(dirname,rawfname,filename))
+        if i == 0:
             analog_in = analog_in[0]
-            amp_data_n  = []
-            for c in range(amp_data.shape[0]):
-                amp_data_n.append(np.array(channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))[0] - 32768, dtype=np.int16))
-            del amp_data
-            amp_data_n = np.array(amp_data_n)
-            arr = np.memmap(os.path.join(opdirname,filename[:-4]+'_shifted.bin'), dtype='int16', mode='w+', shape=amp_data_n.T.shape)
-            arr[:] = amp_data_n.T
-            del arr
-            if saveLFP:
-                # convert microvolts for lfp conversion
-                ### @TODO figure out why this multiplication is commented out in read_data() & not used for amp_data_n above
-                amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
-                print("REAL FS = " + str(1./np.nanmedian(np.diff(ts))))
-                size = amp_data_n.shape[1]
+        amp_data_n  = []
+        for c in range(amp_data.shape[0]):
+            amp_data_n.append(np.array(channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))[0] - 32768, dtype=np.int16))
+        del amp_data
+        amp_data_n = np.array(amp_data_n)
+        arr = np.memmap(os.path.join(save_dir,filename[:-4]+'_shifted.bin'), dtype='int16', mode='w+', shape=amp_data_n.T.shape)
+        arr[:] = amp_data_n.T
+        del arr
+        if saveLFP:
+            # convert microvolts for lfp conversion
+            amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
+            print("REAL FS = " + str(1./np.nanmedian(np.diff(ts))))
+
+            size = amp_data_n.shape[1]
+
+            if i == 0:
                 ind = np.arange(0,size,subsamplingfactor)
-                ts = ts[ind]
-                fs = fs/float(subsamplingfactor)
-                amp_ts_mmap = ts
-                starts = amp_ts_mmap[-1]+1./fs
-                ### @TODO is there a reason why we're downsampling twice? This applies an AA filter 2x
-                ### @TODO consider: stackoverflow.com/questions/56585620/how-do-i-quickly-decimate-a-numpy-array/65824123#65824123
-                amp_data = np.apply_along_axis(decimateSig,1,amp_data_n)
-                amp_data = np.apply_along_axis(decimateSig2,1,amp_data_n)
-                amp_data_mmap = amp_data
-                del amp_data_n
-        else:
-            print("\n ***** Loading: " + filename)
-            ts, amp_data, digIN, analogIN, fs = read_data(os.path.join(dirname,rawfname,filename))    
-            amp_data_n  = []
-            for c in range(amp_data.shape[0]):
-                amp_data_n.append(np.array(channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))[0] - 32768, dtype=np.int16))
-            del amp_data
-            amp_data_n = np.array(amp_data_n)
-            arr = np.memmap(os.path.join(opdirname,filename[:-4]+'_shifted.bin'), dtype='int16', mode='w+', shape=amp_data_n.T.shape)
-            arr[:] = amp_data_n.T
-            del arr
-            if saveLFP:
-                # convert microvolts for lfp conversion
-                amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
-                print("REAL FS = " + str(1./np.nanmedian(np.diff(ts))))
-                size = amp_data_n.shape[1]
+            else:
                 startind = np.where(ts>=starts)[0][0]
                 ind = np.arange(startind,size,subsamplingfactor)
-                ts = ts[ind]
-                fs = fs/float(subsamplingfactor)
+            
+            ### @TODO this first line is special for i > 1 ... why?
+            amp_data_n = np.apply_along_axis(decimateSig,1,amp_data_n[:,startind:])
+            amp_data_n = np.apply_along_axis(decimateSig2,1,amp_data_n)
+            if i == 0:
+                amp_ts_mmap = ts
+                starts = amp_ts_mmap[-1]+1./fs
+                amp_data_mmap = amp_data
+                del amp_data_n
+            else:
                 starts = ts[-1]+1./fs
-                amp_data_n = np.apply_along_axis(decimateSig,1,amp_data_n[:,startind:])
-                amp_data_n = np.apply_along_axis(decimateSig2,1,amp_data_n)
                 amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
                 dig_in = np.array(np.concatenate((dig_in, digIN)), dtype='uint8')
                 amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
-                if saveAnalog:
-                    analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
+            if saveAnalog:
+                analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
     if saveLFP:
         np.save(lfp_filename, amp_data_mmap)
         np.save(lfpts_filename, amp_ts_mmap)
