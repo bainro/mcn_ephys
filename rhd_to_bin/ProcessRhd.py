@@ -99,7 +99,7 @@ if __name__ == "__main__":
     multi_roi = f"{num_ch} recording channels found. "
     multi_roi += "You can split these into multiple ROIs (e.g. VC & PCC). "
     multi_roi += "Each ROI gets its own binary file(s). "
-    multi_roi += "Would you like to split ? (y/n) ")
+    multi_roi += "Would you like to split ? (y/n) "
     multi_roi = input(multi_roi)
     multi_roi = ('y' in multi_roi) or ('Y' in multi_roi)
     # (naming_prefix, start channel, end channel)
