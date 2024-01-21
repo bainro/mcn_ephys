@@ -57,11 +57,10 @@ if __name__ == "__main__":
             err_txt = f'{subsample_factors} multiply to {tot}, not {subsample_total}'
             assert tot == subsample_total, err_txt
         
-    ### @TODO try to autodetect .rhd files in the current directory. If found, list them
     ### @TODO if not found then input(rhd_directoryS) and input(save_dir), make_dirs(save_dir, exist_ok=True)
     dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
     rawfname = 'ET2_211228_174841'
-    save_dir = input('Where would you like to save the output?')
+    save_dir = input('Where would you like to save the outputs?')
     os.makedirs(save_dir, exist_ok=True)
     save_dir = os.path.abspath(save_dir)
     
@@ -70,63 +69,69 @@ if __name__ == "__main__":
     saveAnalog = input('Would you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
 
-    aname = input("What's the animal's ID / name?")
-    lfp_filename = os.path.join(save_dir, aname+'-lfp.npy')
-    lfpts_filename = os.path.join(save_dir, aname+'-lfpts.npy')
-    digIn_filename = os.path.join(save_dir, aname+'-digIn.npy')
-    analogIn_filename = os.path.join(save_dir, aname+'-analogIn.npy')
-
-    files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
-    amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
-    num_ch = amp_data.shape[0]
-    # variable to calculate shift
-    shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
-
-    analog_in = np.array([])
-    amp_ts_mmap = np.array([])
-    amp_data_mmap = np.array([])
-    dig_in = np.array([])
-    for i, filename in enumerate(files):
-        filename = os.path.basename(filename)
-        print("\n ***** Loading: " + filename)
-        rhd_path = os.path.join(dirname,rawfname,filename)
-        ts, amp_data, digIN, analogIN, fs = read_data(rhd_path) 
-        if saveAnalog:
-            analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
-        else:
-            del analogIN
-        amp_data_n  = []
-        for c in range(num_ch):
-            shifted = channel_shift([amp_data[c]], [shift[c]])
-            shifted_offset = np.array(shifted[0] - 32768, dtype=np.int16)
-            amp_data_n.append(shifted_offset)
-        del amp_data
-        amp_data_n = np.array(amp_data_n)
-        shifted_path = os.path.join(save_dir,filename[:-4]+'_shifted.bin')
-        arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=amp_data_n.T.shape)
-        arr[:] = amp_data_n.T
-        del arr
-        if saveLFP:
-            # convert microvolts for lfp conversion
-            amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
-            print("REAL FS = " + str(1 ./ np.nanmedian(np.diff(ts))))
-            starts = ts[-1]+1 ./ fs
-            size = amp_data_n.shape[1]
-            if i == 0:
-                startind = 0
-                ind = np.arange(0, size, subsample_factor)
+    animals = []
+    for d in dirs:
+        name = input(f"What's the animal's ID in {d}?")
+        animals.append(name)
+    
+    for animal_id, d in zip(animals, dirs):
+        sub_save_dir = os.path.join(save_dir, d)
+        lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
+        lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
+        digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
+        analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')
+    
+        files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
+        amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
+        num_ch = amp_data.shape[0]
+        # variable to calculate shift
+        shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
+    
+        analog_in = np.array([])
+        amp_ts_mmap = np.array([])
+        amp_data_mmap = np.array([])
+        dig_in = np.array([])
+        for i, filename in enumerate(files):
+            filename = os.path.basename(filename)
+            print("\n ***** Loading: " + filename)
+            rhd_path = os.path.join(dirname,rawfname,filename)
+            ts, amp_data, digIN, analogIN, fs = read_data(rhd_path) 
+            if saveAnalog:
+                analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
             else:
-                startind = np.where(ts>=starts)[0][0]
-                ind = np.arange(startind, size, subsample_factor)
-            amp_data_n = downsample(subsample_factors, amp_data_n[:,startind:])
-            amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
-            dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
-            amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
-        del amp_data_n
-
-    if saveAnalog:
-        np.save(analogIn_filename, analog_in)
-    if saveLFP:
-        np.save(lfp_filename, amp_data_mmap)
-        np.save(lfpts_filename, amp_ts_mmap)
-        np.save(digIn_filename, dig_in)
+                del analogIN
+            amp_data_n  = []
+            for c in range(num_ch):
+                shifted = channel_shift([amp_data[c]], [shift[c]])
+                shifted_offset = np.array(shifted[0] - 32768, dtype=np.int16)
+                amp_data_n.append(shifted_offset)
+            del amp_data
+            amp_data_n = np.array(amp_data_n)
+            shifted_path = os.path.join(sub_save_dir,filename[:-4]+'_shifted.bin')
+            arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=amp_data_n.T.shape)
+            arr[:] = amp_data_n.T
+            del arr
+            if saveLFP:
+                # convert microvolts for lfp conversion
+                amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
+                print("REAL FS = " + str(1 ./ np.nanmedian(np.diff(ts))))
+                starts = ts[-1]+1 ./ fs
+                size = amp_data_n.shape[1]
+                if i == 0:
+                    startind = 0
+                    ind = np.arange(0, size, subsample_factor)
+                else:
+                    startind = np.where(ts>=starts)[0][0]
+                    ind = np.arange(startind, size, subsample_factor)
+                amp_data_n = downsample(subsample_factors, amp_data_n[:,startind:])
+                amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
+                dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
+                amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
+            del amp_data_n
+    
+        if saveAnalog:
+            np.save(analogIn_filename, analog_in)
+        if saveLFP:
+            np.save(lfp_filename, amp_data_mmap)
+            np.save(lfpts_filename, amp_ts_mmap)
+            np.save(digIn_filename, dig_in)
