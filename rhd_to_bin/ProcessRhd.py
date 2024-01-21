@@ -113,7 +113,7 @@ if __name__ == "__main__":
             else:
                 startind = np.where(ts>=starts)[0][0]
                 ind = np.arange(startind,size,subsample_factor)
-            amp_data_n = downsample(sumsample_factor, amp_data_n[:,startind:])
+            amp_data_n = downsample(subsample_factors, amp_data_n[:,startind:])
             amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
             dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
             amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
