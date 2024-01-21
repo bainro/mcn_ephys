@@ -193,6 +193,7 @@ if __name__ == "__main__":
             np.save(lfpts_filename, amp_ts_mmap)
             np.save(digIn_filename, dig_in)
 
-### @TODO combine all .bin ??? 
+### @TODO combine all .bin ??? test
     # might 1st compare speed of DxH (abc?) to python solution
     # just use 1 binary per roi the whole time, always appending?
+
