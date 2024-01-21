@@ -161,6 +161,7 @@ def read_data(filename):
         # If the software notch filter was selected during the recording, apply the
         # same notch filter to amplifier data here.
         apply_notch = 'notch_filter_frequency' in header.keys()
+        apply_notch = apply_notch and header['notch_filter_frequency'] != None
         apply_notch = apply_notch and header['notch_filter_frequency'] > 0
         if apply_notch:
             print('Applying notch filter...')
