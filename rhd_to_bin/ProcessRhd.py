@@ -107,7 +107,7 @@ if __name__ == "__main__":
     if multi_roi:
         roi_s = [] # overwrite / empty
         print()
-        num_roi = int(input("How many ROIs were recorded from?))
+        num_roi = int(input("How many ROIs were recorded from?"))
         for _i in range(num_roi):
             print()
             roi_name = input(f"What's ROI #{_i}'s name? (e.g. VC) ")
