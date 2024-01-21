@@ -40,19 +40,19 @@ def channel_shift(data, sample_shifts):
 
 if __name__ == "__main__":
     subsample_factors = [5, 6]
-    subsample_total = numpy.prod(subsample_factors)
+    subsample_total = np.prod(subsample_factors)
     print()
     use_default = input(f"Use the default downsampling factor of {subsample_total}? (y/n) ")
     use_default= ('y' in use_default) or ('Y' in use_default)
-    if not default_factor:
+    if not use_default:
         print()
         subsample_total = int(input("What downsampling factor would you like to use then? "))
         # see downsample() for reasoning
         if subsample_total > 13:
             power = math.ceil(subsample_total / 13)
             print()
-            help_txt = f"Downsampling by this much requires smaller steps. " 
-            help_txt += f"List {power} factors separated by commas that multiply to {subsample_total}. "
+            help_txt = 'Downsampling by this much requires smaller steps. '
+            help_txt += f'List {power} factors separated by commas that multiply to {subsample_total}. '
             help_txt += 'E.g. 5, 6 for a downsampling factor of 30'
             subsample_factors = input(help_txt).split(',')
             subsample_factors = [int(x) for x in subsample_factors]
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
     dirs_txt += "It is also assumed that all recordings have the same probe setup. "
     dirs_txt += "List your directories separated by commas. E.g. C:\animal1_day1, C:\animal2_day6"
-    dirs = input(dir_txt).replace(", ", ",").split(',')
+    dirs = input(dirs_txt).replace(", ", ",").split(',')
     # in case someone is silly enough to append a trailing comma
     if dirs[-1] == "":
         del dirs[-1]
@@ -175,12 +175,12 @@ if __name__ == "__main__":
                 starts = ts[-1] + 1.0 / fs
                 size = amp_data_n.shape[1]
                 if i == 0:
-                    startind = 0
-                    ind = np.arange(0, size, subsample_factor)
+                    start_i = 0
+                    ind = np.arange(0, size, subsample_total)
                 else:
-                    startind = np.where(ts >= starts)[0][0]
-                    ind = np.arange(startind, size, subsample_factor)
-                amp_data_n = downsample(subsample_factors, amp_data_n[:,startind:])
+                    start_i = np.where(ts >= starts)[0][0]
+                    ind = np.arange(start_i, size, subsample_total)
+                amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
                 amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
                 dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
                 amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
@@ -193,7 +193,7 @@ if __name__ == "__main__":
             np.save(lfpts_filename, amp_ts_mmap)
             np.save(digIn_filename, dig_in)
 
-### @TODO combine all .bin ??? test
+### @TODO combine all .bin ???
     # might 1st compare speed of DxH (abc?) to python solution
     # just use 1 binary per roi the whole time, always appending?
 
