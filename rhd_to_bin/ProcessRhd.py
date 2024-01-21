@@ -57,11 +57,13 @@ if __name__ == "__main__":
             err_txt = f'{subsample_factors} multiply to {tot}, not {subsample_total}'
             assert tot == subsample_total, err_txt
         
-    ### @TODO input(rhd_directoryS) and input(save_dir), make_dirs(save_dir, exist_ok=True)
     dirs_txt = "You can specify multiple directories to process. " 
-    dirs_txt += ". "
+    dirs_txt += "It is assumed that each directory had .rhd files for one animal recording. "
+    dirs_txt += "List your directories separated by commas. E.g. C:\animal1_day1, C:\animal2_day6"
     dirs = input(dir_txt).replace(", ", ",").split(',')
-    dirs = [int(x) for x in dirs]
+    # in case someone is silly enough to append trailing comma
+    if dirs[-1] == "":
+        del dirs[-1]
     
     save_dir = input('Where would you like to save the outputs?')
     os.makedirs(save_dir, exist_ok=True)
@@ -72,6 +74,7 @@ if __name__ == "__main__":
     saveAnalog = input('Would you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
 
+    # ask for this user input before the long loop below
     animals = []
     for d in dirs:
         name = input(f"What's the animal's ID in {d}?")
@@ -80,14 +83,18 @@ if __name__ == "__main__":
     overwrite = None
     for animal_id, d in zip(animals, dirs):
         sub_save_dir = os.path.join(save_dir, d)
-        ### @TODO create this child save dir
+        os.makedirs(sub_save_dir, exist_ok=True)
+        sub_save_dir = os.path.abspath(sub_save_dir)
         lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
         lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
         digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
         analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')
-        ### @TODO check if it already exists and has an lfp_filename. Prompt for overwriting.
-            # check overwrite that's set right outside the loop
-    
+        # Allows resuming after a crash or error
+        ### @TODO check different file, because they might not have saved this one!
+        old_data = os.path.isfile(analogIn_filename)
+        if old_data:
+            
+        
         files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
         amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
         num_ch = amp_data.shape[0]
