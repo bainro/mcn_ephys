@@ -37,8 +37,11 @@ def channel_shift(data, sample_shifts):
     return cp.asnumpy(data_shifted)
 
 if __name__ == "__main__":
-    # this need to be changed for each animal
-    subsamplingfactor = 30
+    subsample_factor = 30
+    use_default = input(f"Use our default downsampling factor of {subsample_factor}? (y/n) ")
+    use_default= ('y' in use_default) or ('Y' in use_default)
+    if not default_factor:
+        subsample_factor = int(input("What downsampling factor would you like to use then? "))
     ### @TODO try to autodetect .rhd files in the current directory. If found, list them
     ### @TODO if not found then input(rhd_directory) and input(save_dir), make_dirs(save_dir, exist_ok=True)
     dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
@@ -92,11 +95,11 @@ if __name__ == "__main__":
             size = amp_data_n.shape[1]
             if i == 0:
                 startind = 0
-                ind = np.arange(0,size,subsamplingfactor)
+                ind = np.arange(0,size,subsample_factor)
             else:
                 startind = np.where(ts>=starts)[0][0]
-                ind = np.arange(startind,size,subsamplingfactor)
-            amp_data_n = downsample(down_factor, amp_data_n[:,startind:])
+                ind = np.arange(startind,size,subsample_factor)
+            amp_data_n = downsample(sumsample_factor, amp_data_n[:,startind:])
             amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
             dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
             amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
