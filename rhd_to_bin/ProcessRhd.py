@@ -14,7 +14,7 @@ def downsample(factors, sig):
     docs.scipy.org/doc/scipy/reference/generated/scipy.signal.decimate.html
     '''
     for f in factors:
-        fx = spsig.decimate(arr, f)
+        fx = spsig.decimate(sig, f)
         sig = np.apply_along_axis(fx, 1, sig)
     return sig
 
@@ -49,11 +49,11 @@ if __name__ == "__main__":
         subsample_total = int(input("What downsampling factor would you like to use then? "))
         # see downsample() for reasoning
         if subsample_total > 13:
-            power = math.ceil(subsample_total / 13)
+            power = math.ceil(np.emath.logn(13, subsample_total))
             print()
             help_txt = 'Downsampling by this much requires smaller steps. '
             help_txt += f'List {power} factors separated by commas that multiply to {subsample_total}. '
-            help_txt += 'E.g. 5, 6 for a downsampling factor of 30'
+            help_txt += 'E.g. 5, 6 for a downsampling factor of 30 \n\n'
             subsample_factors = input(help_txt).split(',')
             subsample_factors = [int(x) for x in subsample_factors]
             tot = np.prod(subsample_factors)
@@ -64,7 +64,8 @@ if __name__ == "__main__":
     dirs_txt = "You can specify multiple directories to process. " 
     dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
     dirs_txt += "It is also assumed that all recordings have the same probe setup. "
-    dirs_txt += "List your directories separated by commas. E.g. C:\animal1_day1, C:\animal2_day6"
+    dirs_txt += "List your directories separated by commas. \n"
+    dirs_txt += "E.g. C:\\animal1_day1, C:\\animal2_day6 \n\n"
     dirs = input(dirs_txt).replace(", ", ",").split(',')
     # in case someone is silly enough to append a trailing comma
     if dirs[-1] == "":
@@ -72,21 +73,18 @@ if __name__ == "__main__":
     for d in dirs:
         assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
-    save_dir = input('Where would you like to save the outputs?')
+    save_dir = input('\nWhere would you like to save the outputs? \n\n')
     os.makedirs(save_dir, exist_ok=True)
     save_dir = os.path.abspath(save_dir)
 
-    print()
-    saveLFP = input('Would you like to save the LFP? (y/n) ')
+    saveLFP = input('\nWould you like to save the LFP? (y/n) ')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
-    print()
-    saveAnalog = input('Would you like to save the analog signal? (y/n) ')
+    saveAnalog = input('\nWould you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
 
-    print()
     animals = []
     for d in dirs:
-        name = input(f"What is the animal's ID for {d}?")
+        name = input(f"\nWhat is the animal's ID for {d}?\n\n")
         assert name != "", "names cannot be empty"
         animals.append(name)
 
@@ -107,15 +105,15 @@ if __name__ == "__main__":
     if multi_roi:
         roi_s = [] # overwrite / empty
         print()
-        num_roi = int(input("How many ROIs were recorded from?"))
+        num_roi = int(input("How many ROIs were recorded from? "))
         for _i in range(num_roi):
             print()
             roi_name = input(f"What's ROI #{_i}'s name? (e.g. VC) ")
             if _i == 0: # only show this message one time
-                print("Channels are 0-indexed in this script")
+                print("\n\nChannels are 0-indexed in this script")
                 print("E.g. a 128 channel recording starts on 0 and ends on 127")
-            start_ch = int(input(f"Which channel does {roi_name} start? "))
-            end_ch = int(input(f"Which channel does {roi_name} end? "))
+            start_ch = int(input(f"\nWhich channel does {roi_name} start? "))
+            end_ch = int(input(f"\mWhich channel does {roi_name} end? "))
             roi_name = "_" + roi_name + "_"
             roi_info = (roi_name, start_ch, end_ch)
             roi_s.append(roi_info)
