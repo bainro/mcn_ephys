@@ -57,7 +57,7 @@ if __name__ == "__main__":
             subsample_factors = input(help_txt).split(',')
             subsample_factors = [int(x) for x in subsample_factors]
             tot = np.prod(subsample_factors)
-            err_txt = f'{subsample_factors} multiply to {tot}, not {subsample_total}'
+            err_txt = f'{subsample_factors} multiply to {tot}, not the specified {subsample_total}'
             assert tot == subsample_total, err_txt
 
     print()
@@ -66,9 +66,11 @@ if __name__ == "__main__":
     dirs_txt += "It is also assumed that all recordings have the same probe setup. "
     dirs_txt += "List your directories separated by commas. E.g. C:\animal1_day1, C:\animal2_day6"
     dirs = input(dir_txt).replace(", ", ",").split(',')
-    # in case someone is silly enough to append trailing comma
+    # in case someone is silly enough to append a trailing comma
     if dirs[-1] == "":
         del dirs[-1]
+    for d in dirs:
+        assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
     save_dir = input('Where would you like to save the outputs?')
     os.makedirs(save_dir, exist_ok=True)
@@ -85,12 +87,14 @@ if __name__ == "__main__":
     animals = []
     for d in dirs:
         name = input(f"What is the animal's ID for {d}?")
+        assert name != "", "names cannot be empty"
         animals.append(name)
 
     files = natsorted(glob.glob(os.path.join(dirs[0], '*.rhd')))
     first_dirs_first_rhd = os.path.join(d, files[0])
     typical_amp_data = read_data(first_dirs_first_rhd)[1]
     num_ch = typical_amp_data.shape[0]
+    shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
     print()
     multi_roi = f"{num_ch} recording channels found. "
     multi_roi += "You can split these into multiple ROIs (e.g. VC & PCC). "
@@ -107,6 +111,9 @@ if __name__ == "__main__":
         for _i in range(num_roi):
             print()
             roi_name = input(f"What's ROI #{_i}'s name? (e.g. VC) ")
+            if _i == 0: # only show this message one time
+                print("Channels are 0-indexed in this script")
+                print("E.g. a 128 channel recording starts on 0 and ends on 127")
             start_ch = int(input(f"Which channel does {roi_name} start? "))
             end_ch = int(input(f"Which channel does {roi_name} end? "))
             roi_name = "_" + roi_name + "_"
@@ -132,9 +139,6 @@ if __name__ == "__main__":
                 overwrite = ('y' in overwrite) or ('Y' in overwrite)
             if overwrite == False:
                 continue               
-        
-        # variable to calculate shift
-        shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
     
         analog_in = np.array([])
         amp_ts_mmap = np.array([])
