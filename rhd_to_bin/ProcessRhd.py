@@ -1,4 +1,5 @@
 import os
+import math
 import glob
 import cupy as cp
 import numpy as np
@@ -7,14 +8,15 @@ from natsort import natsorted
 from intanutil.read_data import read_data
 
 
-def downsample(factor, sig):
+def downsample(factors, sig):
     '''
     Avoids NaNs by calling decimate multiple times:
     docs.scipy.org/doc/scipy/reference/generated/scipy.signal.decimate.html
     '''
-    ### @TODO split into multiple calls if factor > 13
-    amp_data_n = np.apply_along_axis(spsig.decimate(arr, 5),1,sig)
-    amp_data_n = np.apply_along_axis(spsig.decimate(arr, 6),1,sig)
+    for f in factors:
+        fx = spsig.decimate(arr, f)
+        sig = np.apply_along_axis(fx, 1, sig)
+    return sig
 
 def channel_shift(data, sample_shifts):
     """
@@ -37,11 +39,23 @@ def channel_shift(data, sample_shifts):
     return cp.asnumpy(data_shifted)
 
 if __name__ == "__main__":
-    subsample_factor = 30
-    use_default = input(f"Use our default downsampling factor of {subsample_factor}? (y/n) ")
+    subsample_factors = [5, 6]
+    subsample_total = numpy.prod(subsample_factors)
+    use_default = input(f"Use our default downsampling factor of {subsample_total}? (y/n) ")
     use_default= ('y' in use_default) or ('Y' in use_default)
     if not default_factor:
-        subsample_factor = int(input("What downsampling factor would you like to use then? "))
+        subsample_total = int(input("What downsampling factor would you like to use then? "))
+        # see downsample() for reasoning
+        if subsample_total > 13:
+            power = math.ceil(subsample_total / 13)
+            user_explanation = f"Downsampling by this much requires smaller steps. " 
+            user_explanation += f"List {power} factors separated by spaces that multiply to {subsample_total}. "
+            user_explanation += 'E.g. "5, 6" for a downsampling factor of 30'
+            subsample_factors = input(user_explanation).split().replace("'", "").replace('"', '')
+            subsample_factors = [int(x) for x in subsample_factors]
+            tot = np.prod(subsample_factors)
+            assert tot == subsample_total, f'{subsample_factors} multiply to {tot}, not subsample_total'
+        
     ### @TODO try to autodetect .rhd files in the current directory. If found, list them
     ### @TODO if not found then input(rhd_directory) and input(save_dir), make_dirs(save_dir, exist_ok=True)
     dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
@@ -49,7 +63,7 @@ if __name__ == "__main__":
     save_dir = input('Where would you like to save the output?')
     os.makedirs(save_dir, exist_ok=True)
     save_dir = os.path.abspath(save_dir)
-    ### @TODO LFP & Analog: what's the diff, just downsampling?
+    
     saveLFP = input('Would you like to save the LFP? (y/n) ')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
     saveAnalog = input('Would you like to save the analog signal? (y/n) ')
