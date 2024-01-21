@@ -102,7 +102,7 @@ if __name__ == "__main__":
         if old_data:
             if overwrite == None:
                 print()
-                overwrite = input('Previous output found. Overwrite old binaries? (y/n) ')
+                overwrite = input('Old binaries found! Overwrite? (y/n) ')
                 overwrite = ('y' in overwrite) or ('Y' in overwrite)
             if overwrite == False:
                 continue               
