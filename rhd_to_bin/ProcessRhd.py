@@ -61,11 +61,17 @@ if __name__ == "__main__":
     num_ch = amp_data.shape[0]
     # variable to calculate shift
     shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
-    
+
+    analog_in = np.array([])
+    amp_ts_mmap = np.array([])
+    amp_data_mmap = np.array([])
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
-        if i == 0:
-            analog_in = analog_in[0]
+        print("\n ***** Loading: " + filename)
+        ts, amp_data, digIN, analogIN, fs = read_data(os.path.join(dirname,rawfname,filename)) 
+        if saveAnalog:
+            analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
+
         amp_data_n  = []
         for c in range(amp_data.shape[0]):
             amp_data_n.append(np.array(channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))[0] - 32768, dtype=np.int16))
@@ -86,22 +92,19 @@ if __name__ == "__main__":
             else:
                 startind = np.where(ts>=starts)[0][0]
                 ind = np.arange(startind,size,subsamplingfactor)
-            
-            ### @TODO this first line is special for i > 1 ... why?
+
+            ### @TODO automatically split decimate into calls with less than n=13, allowing user input?
+            ### @TODO this first line is special for i > 1 ... 
             amp_data_n = np.apply_along_axis(decimateSig,1,amp_data_n[:,startind:])
             amp_data_n = np.apply_along_axis(decimateSig2,1,amp_data_n)
-            if i == 0:
-                amp_ts_mmap = ts
-                starts = amp_ts_mmap[-1]+1./fs
-                amp_data_mmap = amp_data
-                del amp_data_n
-            else:
-                starts = ts[-1]+1./fs
-                amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
+            starts = ts[-1]+1./fs
+            amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
+            amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
+            del amp_data_n
+            if i != 0:
                 dig_in = np.array(np.concatenate((dig_in, digIN)), dtype='uint8')
-                amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
-            if saveAnalog:
-                analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
+                
+                
     if saveLFP:
         np.save(lfp_filename, amp_data_mmap)
         np.save(lfpts_filename, amp_ts_mmap)
