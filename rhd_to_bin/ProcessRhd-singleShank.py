@@ -1,5 +1,3 @@
-#! /bin/env python
-
 import glob
 import numpy as np
 import cupy as cp
@@ -188,17 +186,15 @@ def read_data(filename):
     print('Done!  Elapsed time: {0:0.1f} seconds'.format(time.time() - tic))
     return result['t_amplifier'], result['amplifier_data'], data['board_dig_in_raw'], data['board_adc_data'], result['frequency_parameters']['amplifier_sample_rate']
 
-### @TODO replace with numpy strided slicing & remove scipy dependence
+### @TODO why decimate twice?
 def decimateSig(arr):
     """function to decimate signal"""
     return spsig.decimate(arr, 5)
 
-### @TODO replace with numpy strided slicing & remove scipy dependence
 def decimateSig2(arr):
     """function to decimate signal"""
     return spsig.decimate(arr, 6)
 
-### @TODO understand what this does to first & last 32 samples
 def channel_shift(data, sample_shifts):
     """
     GPU Shifts channel signals via a Fourier transform to correct for different sampling times
@@ -223,25 +219,22 @@ def channel_shift(data, sample_shifts):
 if __name__ == "__main__":
 
     # variable to calculate shift
-    ### @TODO test if this works on the 10s generated pure sine wave data
-    ### @TODO ask user how many channels there are among all the shanks. Currently assumes 256 ch's
-    ### @TODO is the noise introduced from the fft + dephase & ifft worth the avg(correction) of 1/500,000 of a second?
-    ### @TODO is the time to do this correction worth it. Rajat's response suggested results are the same.
-    shift = np.tile(np.linspace(-1,0,32),8)
     
     # this need to be changed for each animal
-    ### @TODO get user input for how much to reduce the LFP's sampling rate (ie downsample factor) 
     subsamplingfactor = 30
     ### @TODO try to autodetect .rhd files in the current directory. If found, list them
     ### @TODO if not found then input(rhd_directory) and input(save_dir), make_dirs(save_dir, exist_ok=True)
     dirname = '/media/rajat/mcnlab_store2/Research/SPrecordings/Rajat_Data/Data-Enrichment/EERound2/ET2'
     rawfname = 'ET2_211228_174841'
-    aname = 'ET2'
-    opdirname = 'E:\Enrichment\ET2'
-    saveLFP = True
-    saveAnalog = False
-    
-    lfp_filename = os.path.join(dirname,aname+'-lfp.npy')
+    save_dir = input('Where would you like to save the output?')
+    ### @TODO ask user if they want to save LFP & Analog (what's the diff, just downsampling?)
+    saveLFP = input('Would you like to save the LFP?')
+    saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
+    saveAnalog = input('Would you like to save the analog signal?')
+    saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
+
+    aname = input("What's the animal's ID / name?")
+    lfp_filename = os.path.join(dirname, aname+'-lfp.npy')
     lfpts_filename = os.path.join(dirname,aname+'-lfpts.npy')
     digIn_filename = os.path.join(dirname, aname+'-digIn.npy')
     analogIn_filename = os.path.join(dirname, aname+'-analogIn.npy')
@@ -250,6 +243,10 @@ if __name__ == "__main__":
     amp_data_mmap = None
     amp_ts_mmap = None
     files = natsorted(glob.glob(os.path.join(dirname,rawfname,'*.rhd')))
+
+    amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
+    num_ch = amp_data.shape[0]
+    shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
     
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
