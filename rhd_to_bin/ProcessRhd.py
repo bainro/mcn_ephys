@@ -65,13 +65,15 @@ if __name__ == "__main__":
     analog_in = np.array([])
     amp_ts_mmap = np.array([])
     amp_data_mmap = np.array([])
+    dig_in = np.array([])
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
         print("\n ***** Loading: " + filename)
         ts, amp_data, digIN, analogIN, fs = read_data(os.path.join(dirname,rawfname,filename)) 
         if saveAnalog:
             analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
-
+        else:
+            del analogIN
         amp_data_n  = []
         for c in range(amp_data.shape[0]):
             amp_data_n.append(np.array(channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))[0] - 32768, dtype=np.int16))
@@ -84,30 +86,25 @@ if __name__ == "__main__":
             # convert microvolts for lfp conversion
             amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
             print("REAL FS = " + str(1./np.nanmedian(np.diff(ts))))
-
+            starts = ts[-1]+1 ./ fs
             size = amp_data_n.shape[1]
-
             if i == 0:
                 ind = np.arange(0,size,subsamplingfactor)
             else:
                 startind = np.where(ts>=starts)[0][0]
                 ind = np.arange(startind,size,subsamplingfactor)
-
             ### @TODO automatically split decimate into calls with less than n=13, allowing user input?
             ### @TODO this first line is special for i > 1 ... 
             amp_data_n = np.apply_along_axis(decimateSig,1,amp_data_n[:,startind:])
             amp_data_n = np.apply_along_axis(decimateSig2,1,amp_data_n)
-            starts = ts[-1]+1./fs
             amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
+            dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
             amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
             del amp_data_n
-            if i != 0:
-                dig_in = np.array(np.concatenate((dig_in, digIN)), dtype='uint8')
-                
-                
+
+    if saveAnalog:
+        np.save(analogIn_filename, analog_in)
     if saveLFP:
         np.save(lfp_filename, amp_data_mmap)
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_filename, dig_in)
-        if saveAnalog:
-            np.save(analogIn_filename, analog_in)
