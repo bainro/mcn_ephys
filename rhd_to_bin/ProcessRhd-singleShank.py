@@ -186,7 +186,6 @@ def read_data(filename):
     print('Done!  Elapsed time: {0:0.1f} seconds'.format(time.time() - tic))
     return result['t_amplifier'], result['amplifier_data'], data['board_dig_in_raw'], data['board_adc_data'], result['frequency_parameters']['amplifier_sample_rate']
 
-### @TODO why decimate twice?
 def decimateSig(arr):
     """function to decimate signal"""
     return spsig.decimate(arr, 5)
@@ -230,9 +229,9 @@ if __name__ == "__main__":
     os.makedirs(save_dir, exist_ok=True)
     save_dir = os.path.abspath(save_dir)
     ### @TODO LFP & Analog: what's the diff, just downsampling?
-    saveLFP = input('Would you like to save the LFP?')
+    saveLFP = input('Would you like to save the LFP? (y/n) ')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
-    saveAnalog = input('Would you like to save the analog signal?')
+    saveAnalog = input('Would you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
 
     aname = input("What's the animal's ID / name?")
