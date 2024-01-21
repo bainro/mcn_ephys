@@ -20,7 +20,7 @@ def downsample(factors, sig):
 
 def channel_shift(data, sample_shifts):
     """
-    GPU Shifts channel signals via a Fourier transform to correct for different sampling times
+    GPU shifts signals via a Fourier transform to correct for diff sampling times
     :param data: cupy array with shape (n_channels, n_times)
     :param sample_shifts: channel shifts, cupy array with shape (n_channels)
     :return: Aligned data, cupy array with shape (n_channels, n_times)
@@ -48,13 +48,14 @@ if __name__ == "__main__":
         # see downsample() for reasoning
         if subsample_total > 13:
             power = math.ceil(subsample_total / 13)
-            user_explanation = f"Downsampling by this much requires smaller steps. " 
-            user_explanation += f"List {power} factors separated by spaces that multiply to {subsample_total}. "
-            user_explanation += 'E.g. "5, 6" for a downsampling factor of 30'
-            subsample_factors = input(user_explanation).split().replace("'", "").replace('"', '')
+            help_txt = f"Downsampling by this much requires smaller steps. " 
+            help_txt += f"List {power} factors separated by spaces that multiply to {subsample_total}. "
+            help_txt += 'E.g. "5, 6" for a downsampling factor of 30'
+            subsample_factors = input(help_txt).split().replace("'", "").replace('"', '')
             subsample_factors = [int(x) for x in subsample_factors]
             tot = np.prod(subsample_factors)
-            assert tot == subsample_total, f'{subsample_factors} multiply to {tot}, not subsample_total'
+            err_txt = f'{subsample_factors} multiply to {tot}, not {subsample_total}'
+            assert tot == subsample_total, err_txt
         
     ### @TODO try to autodetect .rhd files in the current directory. If found, list them
     ### @TODO if not found then input(rhd_directory) and input(save_dir), make_dirs(save_dir, exist_ok=True)
@@ -88,16 +89,17 @@ if __name__ == "__main__":
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
         print("\n ***** Loading: " + filename)
-        ts, amp_data, digIN, analogIN, fs = read_data(os.path.join(dirname,rawfname,filename)) 
+        rhd_path = os.path.join(dirname,rawfname,filename)
+        ts, amp_data, digIN, analogIN, fs = read_data(rhd_path) 
         if saveAnalog:
             analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
         else:
             del analogIN
         amp_data_n  = []
         for c in range(num_ch):
-            tmp = channel_shift(np.array([amp_data[c]]), np.array([shift[c]]))
-            tmp2 = np.array(tmp[0] - 32768, dtype=np.int16)
-            amp_data_n.append(tmp2)
+            shifted = channel_shift([amp_data[c]], [shift[c]])
+            shifted_offset = np.array(shifted[0] - 32768, dtype=np.int16)
+            amp_data_n.append(shifted_offset)
         del amp_data
         amp_data_n = np.array(amp_data_n)
         shifted_path = os.path.join(save_dir,filename[:-4]+'_shifted.bin')
