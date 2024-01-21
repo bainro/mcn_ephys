@@ -87,13 +87,31 @@ if __name__ == "__main__":
         name = input(f"What is the animal's ID for {d}?")
         animals.append(name)
 
-    files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
-    amp_data = read_data(os.path.join(dirname,rawfname,files[0]))[1]
-    num_ch = amp_data.shape[0]
+    files = natsorted(glob.glob(os.path.join(dirs[0], '*.rhd')))
+    first_dirs_first_rhd = os.path.join(d, files[0])
+    typical_amp_data = read_data(first_dirs_first_rhd)[1]
+    num_ch = typical_amp_data.shape[0]
     print()
-    multi_roi = input("hi")
+    multi_roi = f"{num_ch} recording channels found. "
+    multi_roi += "You can split these into multiple ROIs (e.g. VC & PCC). "
+    multi_roi += "Each ROI gets its own binary file(s). "
+    multi_roi += "Would you like to split ? (y/n) ")
+    multi_roi = input(multi_roi)
+    multi_roi = ('y' in multi_roi) or ('Y' in multi_roi)
+    # (naming_prefix, start channel, end channel)
+    roi_s = [("", 0, num_ch)]
     if multi_roi:
-        print("makes some more lists!")
+        roi_s = [] # overwrite / empty
+        print()
+        num_roi = int(input("How many ROIs were recorded from?))
+        for _i in range(num_roi):
+            print()
+            roi_name = input(f"What's ROI #{_i}'s name? (e.g. VC) ")
+            start_ch = int(input(f"Which channel does {roi_name} start? "))
+            end_ch = int(input(f"Which channel does {roi_name} end? "))
+            roi_name = "_" + roi_name + "_"
+            roi_info = (roi_name, start_ch, end_ch)
+            roi_s.append(roi_info)
 
     # ask for user inputs before this long loop if possible!
     overwrite = None
@@ -122,10 +140,11 @@ if __name__ == "__main__":
         amp_ts_mmap = np.array([])
         amp_data_mmap = np.array([])
         dig_in = np.array([])
+        files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
         for i, filename in enumerate(files):
             filename = os.path.basename(filename)
             print("\n ***** Loading: " + filename)
-            rhd_path = os.path.join(dirname,rawfname,filename)
+            rhd_path = os.path.join(d, filename)
             ts, amp_data, digIN, analogIN, fs = read_data(rhd_path) 
             if saveAnalog:
                 analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
@@ -138,13 +157,13 @@ if __name__ == "__main__":
                 amp_data_n.append(shifted_offset)
             del amp_data
             amp_data_n = np.array(amp_data_n)
-            shifted_path = os.path.join(sub_save_dir,filename[:-4]+'_shifted.bin')
-            arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=amp_data_n.T.shape)
-            ### @TODO user input() outside of this long loop to allow specifying how the channels are split (eg VC vs PPC)
-            # arr1 = np.memmap(os.path.join(opdirname, filename[:-4]+'_VC_shifted.bin'), dtype='int16', mode='w+', shape=amp_data_n[:256,:].T.shape)
-            # arr1[:] = amp_data_n[:256,:].T
-            arr[:] = amp_data_n.T
-            del arr
+            for roi in roi_s:
+                name, start, end = roi
+                shifted_path = os.path.join(sub_save_dir, filename[:-4] + name + '_shifted.bin')
+                roi_data = amp_data_n[start:end]
+                arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=roi_data.T.shape)
+                arr[:] = roi_data.T
+                del arr
             if saveLFP:
                 # convert microvolts for lfp conversion
                 amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
