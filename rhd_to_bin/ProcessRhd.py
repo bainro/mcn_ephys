@@ -6,13 +6,15 @@ import scipy.signal as spsig
 from natsort import natsorted
 from intanutil.read_data import read_data
 
-def decimateSig(arr):
-    """function to decimate signal"""
-    return spsig.decimate(arr, 5)
 
-def decimateSig2(arr):
-    """function to decimate signal"""
-    return spsig.decimate(arr, 6)
+def downsample(factor, sig):
+    '''
+    Avoids NaNs by calling decimate multiple times:
+    docs.scipy.org/doc/scipy/reference/generated/scipy.signal.decimate.html
+    '''
+    ### @TODO split into multiple calls if factor > 13
+    amp_data_n = np.apply_along_axis(spsig.decimate(arr, 5),1,sig)
+    amp_data_n = np.apply_along_axis(spsig.decimate(arr, 6),1,sig)
 
 def channel_shift(data, sample_shifts):
     """
@@ -89,14 +91,12 @@ if __name__ == "__main__":
             starts = ts[-1]+1 ./ fs
             size = amp_data_n.shape[1]
             if i == 0:
+                startind = 0
                 ind = np.arange(0,size,subsamplingfactor)
             else:
                 startind = np.where(ts>=starts)[0][0]
                 ind = np.arange(startind,size,subsamplingfactor)
-            ### @TODO automatically split decimate into calls with less than n=13, allowing user input?
-            ### @TODO this first line is special for i > 1 ... 
-            amp_data_n = np.apply_along_axis(decimateSig,1,amp_data_n[:,startind:])
-            amp_data_n = np.apply_along_axis(decimateSig2,1,amp_data_n)
+            amp_data_n = downsample(down_factor, amp_data_n[:,startind:])
             amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
             dig_in = np.concatenate((dig_in, digIN))).astype(np.uint8)
             amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
