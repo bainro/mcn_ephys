@@ -166,7 +166,7 @@ if __name__ == "__main__":
                 del arr
             if saveLFP:
                 # convert microvolts for lfp conversion
-                amp_data_n = np.multiply(0.195,  amp_data_n, dtype=np.float32)
+                amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
                 print("REAL FS = " + str(1 ./ np.nanmedian(np.diff(ts))))
                 starts = ts[-1]+1 ./ fs
                 size = amp_data_n.shape[1]
@@ -174,7 +174,7 @@ if __name__ == "__main__":
                     startind = 0
                     ind = np.arange(0, size, subsample_factor)
                 else:
-                    startind = np.where(ts>=starts)[0][0]
+                    startind = np.where(ts >= starts)[0][0]
                     ind = np.arange(startind, size, subsample_factor)
                 amp_data_n = downsample(subsample_factors, amp_data_n[:,startind:])
                 amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
