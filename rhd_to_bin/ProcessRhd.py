@@ -144,3 +144,4 @@ if __name__ == "__main__":
             np.save(digIn_filename, dig_in)
 
 ### @TODO combine all .bin ???
+    # might compare speed of DxH (abc?) to python solution
