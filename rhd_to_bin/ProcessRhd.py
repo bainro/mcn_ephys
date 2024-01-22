@@ -14,7 +14,7 @@ def downsample(factors, sig):
     docs.scipy.org/doc/scipy/reference/generated/scipy.signal.decimate.html
     '''
     for f in factors:
-        fx = spsig.decimate(sig, f)
+        fx = lambda sig : spsig.decimate(sig, f)
         sig = np.apply_along_axis(fx, 1, sig)
     return sig
 
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     multi_roi += "Would you like to split ? (y/n) "
     multi_roi = input(multi_roi)
     multi_roi = ('y' in multi_roi) or ('Y' in multi_roi)
-    # (naming_prefix, start channel, end channel)
-    roi_s = [("", 0, num_ch)]
+    # [(naming_prefix, start channel, end channel)]
+    roi_s = [("", 0, num_ch-1)]
     if multi_roi:
         roi_s = [] # overwrite / empty
         print()
@@ -110,18 +110,28 @@ if __name__ == "__main__":
             print()
             roi_name = input(f"What's ROI #{_i}'s name? (e.g. VC) ")
             if _i == 0: # only show this message one time
-                print("\n\nChannels are 0-indexed in this script")
+                print("\nChannels are 0-indexed in this script")
                 print("E.g. a 128 channel recording starts on 0 and ends on 127")
             start_ch = int(input(f"\nWhich channel does {roi_name} start? "))
-            end_ch = int(input(f"\mWhich channel does {roi_name} end? "))
+            end_ch = int(input(f"\nWhich channel does {roi_name} end? "))
             roi_name = "_" + roi_name + "_"
             roi_info = (roi_name, start_ch, end_ch)
             roi_s.append(roi_info)
+    # small sanity check that at least first and last channel are included
+    first_ch, last_ch = False, False
+    for _, st, end in roi_s:
+        if st == 0:
+            first_ch = True
+        if end == num_ch - 1:
+            last_ch = True
+    err_txt = "channels 0 and {num_ch - 1} not specified. Incorrect user input."
+    assert first_ch and last_ch, err_txt
 
     # ask for user inputs before this long loop if possible!
     overwrite = None
     for animal_id, d in zip(animals, dirs):
-        sub_save_dir = os.path.join(save_dir, d)
+        d = os.path.normpath(d)
+        sub_save_dir = os.path.join(save_dir, os.path.basename(d))
         os.makedirs(sub_save_dir, exist_ok=True)
         sub_save_dir = os.path.abspath(sub_save_dir)
         lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
@@ -138,10 +148,11 @@ if __name__ == "__main__":
             if overwrite == False:
                 continue               
     
+        starts = 0
+        dig_in = np.array([])
         analog_in = np.array([])
         amp_ts_mmap = np.array([])
-        amp_data_mmap = np.array([])
-        dig_in = np.array([])
+        amp_data_mmap = np.array([[]] * num_ch)    
         files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
         for i, filename in enumerate(files):
             filename = os.path.basename(filename)
@@ -162,7 +173,7 @@ if __name__ == "__main__":
             for roi in roi_s:
                 name, start, end = roi
                 shifted_path = os.path.join(sub_save_dir, filename[:-4] + name + '_shifted.bin')
-                roi_data = amp_data_n[start:end]
+                roi_data = amp_data_n[start:end+1]
                 arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=roi_data.T.shape)
                 arr[:] = roi_data.T
                 del arr
@@ -170,14 +181,15 @@ if __name__ == "__main__":
                 # convert microvolts for lfp conversion
                 amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
                 print("REAL FS = " + str(1.0 / np.nanmedian(np.diff(ts))))
-                starts = ts[-1] + 1.0 / fs
                 size = amp_data_n.shape[1]
+                fs = fs / float(subsample_total)
                 if i == 0:
                     start_i = 0
-                    ind = np.arange(0, size, subsample_total)
                 else:
                     start_i = np.where(ts >= starts)[0][0]
-                    ind = np.arange(start_i, size, subsample_total)
+                starts = ts[-1] + 1.0 / fs    
+                ind = np.arange(start_i, size, subsample_total)
+                ts = ts[ind]
                 amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
                 amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
                 dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
