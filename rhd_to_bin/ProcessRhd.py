@@ -112,10 +112,10 @@ if __name__ == "__main__":
             print()
             roi_name = input(f"What's ROI #{_i+1}'s name? (e.g. VC) ")
             if _i == 0: # only show this message one time
-                print("\nChannels are 0-indexed in this script")
-                print("E.g. a 128 channel recording starts on 0 and ends on 127")
-            start_ch = int(input(f"\nWhich channel does {roi_name} start? "))
-            end_ch = int(input(f"\nWhich channel does {roi_name} end? "))
+                print("\nChannels are 1-indexed in this script, like in Matlab")
+                print("E.g. a 128 channel recording starts on 1 and ends on 128")
+            start_ch = int(input(f"\nWhich channel does {roi_name} start? ")) - 1
+            end_ch = int(input(f"\nWhich channel does {roi_name} end? ")) - 1
             roi_info = (roi_name, start_ch, end_ch)
             roi_s.append(roi_info)
     # small sanity check that at least first and last channel are included
