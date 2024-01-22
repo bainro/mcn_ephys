@@ -6,6 +6,7 @@ import numpy as np
 import scipy.signal as spsig
 from natsort import natsorted
 from intanutil.read_data import read_data
+from intanutil.read_header import read_header
 
 
 def downsample(factors, sig):
@@ -87,11 +88,12 @@ if __name__ == "__main__":
         name = input(f"\nWhat is the animal's ID for {d}?\n\n")
         assert name != "", "names cannot be empty"
         animals.append(name)
-
+   
     files = natsorted(glob.glob(os.path.join(dirs[0], '*.rhd')))
     first_dirs_first_rhd = os.path.join(d, files[0])
-    typical_amp_data = read_data(first_dirs_first_rhd)[1]
-    num_ch = typical_amp_data.shape[0]
+    fid = open(first_dirs_first_rhd, 'rb')
+    header = read_header(fid)
+    num_ch = header['num_amplifier_channels']
     shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
     print()
     multi_roi = f"{num_ch} recording channels found. "
@@ -108,13 +110,12 @@ if __name__ == "__main__":
         num_roi = int(input("How many ROIs were recorded from? "))
         for _i in range(num_roi):
             print()
-            roi_name = input(f"What's ROI #{_i}'s name? (e.g. VC) ")
+            roi_name = input(f"What's ROI #{_i+1}'s name? (e.g. VC) ")
             if _i == 0: # only show this message one time
                 print("\nChannels are 0-indexed in this script")
                 print("E.g. a 128 channel recording starts on 0 and ends on 127")
             start_ch = int(input(f"\nWhich channel does {roi_name} start? "))
             end_ch = int(input(f"\nWhich channel does {roi_name} end? "))
-            roi_name = "_" + roi_name + "_"
             roi_info = (roi_name, start_ch, end_ch)
             roi_s.append(roi_info)
     # small sanity check that at least first and last channel are included
@@ -153,6 +154,7 @@ if __name__ == "__main__":
         analog_in = np.array([])
         amp_ts_mmap = np.array([])
         amp_data_mmap = np.array([[]] * num_ch)    
+        roi_offsets = [0] * len(roi_s) 
         files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
         for i, filename in enumerate(files):
             filename = os.path.basename(filename)
@@ -170,12 +172,20 @@ if __name__ == "__main__":
                 amp_data_n.append(shifted_offset)
             del amp_data
             amp_data_n = np.array(amp_data_n)
-            for roi in roi_s:
+            for r_i, roi in enumerate(roi_s):
                 name, start, end = roi
-                shifted_path = os.path.join(sub_save_dir, filename[:-4] + name + '_shifted.bin')
+                offset = roi_offsets[r_i]
                 roi_data = amp_data_n[start:end+1]
-                arr = np.memmap(shifted_path, dtype='int16', mode='w+', shape=roi_data.T.shape)
-                arr[:] = roi_data.T
+                shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
+                shape = (roi_data.shape[1] + int(offset / roi_data.shape[0] / 2), roi_data.shape[0])
+                m = 'w+'
+                if i > 0:
+                    m = 'r+' # extend if already created
+                arr = np.memmap(shifted_path, dtype='int16', mode=m, shape=shape)
+                # update this ROI's binary file offset
+                roi_offsets[r_i] += 2 * np.prod(roi_data.shape) 
+                # append to the end of the large binary file
+                arr[-roi_data.shape[-1]:,:] = roi_data.T
                 del arr
             if saveLFP:
                 # convert microvolts for lfp conversion
@@ -202,8 +212,3 @@ if __name__ == "__main__":
             np.save(lfp_filename, amp_data_mmap)
             np.save(lfpts_filename, amp_ts_mmap)
             np.save(digIn_filename, dig_in)
-
-### @TODO combine all .bin ???
-    # might 1st compare speed of DxH (abc?) to python solution
-    # just use 1 binary per roi the whole time, always appending?
-
