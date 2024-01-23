@@ -2,8 +2,6 @@ import os
 import math
 import glob
 import time
-import threading
-import nvidia_smi
 import cupy as cp
 import numpy as np
 import scipy.signal as spsig
@@ -232,9 +230,3 @@ if __name__ == "__main__":
             np.save(digIn_filename, dig_in)
 
 print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
-
-# cupy / GPU memory cleanup            
-mempool = cp.get_default_memory_pool()
-pinned_mempool = cp.get_default_pinned_memory_pool()
-mempool.free_all_blocks()
-pinned_mempool.free_all_blocks()
