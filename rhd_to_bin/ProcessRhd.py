@@ -1,12 +1,20 @@
 import os
 import math
 import glob
+import time
+import threading
+import nvidia_smi
 import cupy as cp
 import numpy as np
 import scipy.signal as spsig
 from natsort import natsorted
+# fixes "No module named intanutil" err
+script_path = os.path.abspath(__file__)
+script_dir = os.path.dirname(script_path)
+os.chdir(script_dir)
 from intanutil.read_data import read_data
 from intanutil.read_header import read_header
+from intanutil.get_bytes_per_data_block import get_bytes_per_data_block
 
 
 def downsample(factors, sig):
@@ -25,7 +33,8 @@ def channel_shift(data, sample_shifts):
     :param data: cupy array with shape (n_channels, n_times)
     :param sample_shifts: channel shifts, cupy array with shape (n_channels)
     :return: Aligned data, cupy array with shape (n_channels, n_times)
-    """
+    """    
+    
     data = cp.array(data)
     sample_shifts = cp.array(sample_shifts)
     
@@ -36,33 +45,14 @@ def channel_shift(data, sample_shifts):
     dephas = cp.exp(1j * dephas * sample_shifts[:, cp.newaxis])
 
     data_shifted = cp.real(cp.fft.ifft(cp.fft.fft(data) * dephas))
+    
+    shifted_and_offset = cp.array(data_shifted[0] - 32768, dtype=cp.int16)
 
-    return cp.asnumpy(data_shifted)
+    return cp.asnumpy(shifted_and_offset)
 
-if __name__ == "__main__":
-    subsample_factors = [5, 6]
-    subsample_total = np.prod(subsample_factors)
+if __name__ == "__main__":    
     print()
-    use_default = input(f"Use the default downsampling factor of {subsample_total}? (y/n) ")
-    use_default= ('y' in use_default) or ('Y' in use_default)
-    if not use_default:
-        print()
-        subsample_total = int(input("What downsampling factor would you like to use then? "))
-        # see downsample() for reasoning
-        if subsample_total > 13:
-            power = math.ceil(np.emath.logn(13, subsample_total))
-            print()
-            help_txt = 'Downsampling by this much requires smaller steps. '
-            help_txt += f'List {power} factors separated by commas that multiply to {subsample_total}. '
-            help_txt += 'E.g. 5, 6 for a downsampling factor of 30 \n\n'
-            subsample_factors = input(help_txt).split(',')
-            subsample_factors = [int(x) for x in subsample_factors]
-            tot = np.prod(subsample_factors)
-            err_txt = f'{subsample_factors} multiply to {tot}, not the specified {subsample_total}'
-            assert tot == subsample_total, err_txt
-
-    print()
-    dirs_txt = "You can specify multiple directories to process. " 
+    dirs_txt = "Which directories do you want to process? You may specify multiple. " 
     dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
     dirs_txt += "It is also assumed that all recordings have the same probe setup. "
     dirs_txt += "List your directories separated by commas. \n"
@@ -82,19 +72,42 @@ if __name__ == "__main__":
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
     saveAnalog = input('\nWould you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
-
-    animals = []
-    for d in dirs:
-        name = input(f"\nWhat is the animal's ID for {d}?\n\n")
-        assert name != "", "names cannot be empty"
-        animals.append(name)
+    
+    if saveLFP:
+        subsample_factors = [5, 6]
+        subsample_total = np.prod(subsample_factors)
+        print()
+        use_default = input(f"Use the default LFP downsampling factor of {subsample_total}? (y/n) ")
+        use_default= ('y' in use_default) or ('Y' in use_default)
+        if not use_default:
+            print()
+            subsample_total = int(input("What downsampling factor would you like to use then? "))
+            # see downsample() for reasoning
+            if subsample_total > 13:
+                power = math.ceil(np.emath.logn(13, subsample_total))
+                print()
+                help_txt = 'Downsampling by this much requires smaller steps. '
+                help_txt += f'List {power} factors separated by commas that multiply to {subsample_total}. '
+                help_txt += 'E.g. 5, 6 for a downsampling factor of 30 \n\n'
+                subsample_factors = input(help_txt).split(',')
+                subsample_factors = [int(x) for x in subsample_factors]
+                tot = np.prod(subsample_factors)
+                err_txt = f'{subsample_factors} multiply to {tot}, not the specified {subsample_total}'
+                assert tot == subsample_total, err_txt
    
     files = natsorted(glob.glob(os.path.join(dirs[0], '*.rhd')))
     first_dirs_first_rhd = os.path.join(d, files[0])
     fid = open(first_dirs_first_rhd, 'rb')
+    filesize = os.path.getsize(first_dirs_first_rhd)
     header = read_header(fid)
+    # Determine how many samples the data file contains.
+    bytes_per_block = get_bytes_per_data_block(header)
+    bytes_remaining = filesize - fid.tell()
+    num_data_blocks = int(bytes_remaining / bytes_per_block)
+    num_amplifier_samples = header['num_samples_per_data_block'] * num_data_blocks
+    record_time = round(num_amplifier_samples / header['sample_rate'])
     num_ch = header['num_amplifier_channels']
-    shift = np.tile(np.linspace(-1,0,32),num_ch // 32)
+    shift = np.tile(np.linspace(-1,0,32), num_ch // 32)
     print()
     multi_roi = f"{num_ch} recording channels found. "
     multi_roi += "You can split these into multiple ROIs (e.g. VC & PCC). "
@@ -106,48 +119,53 @@ if __name__ == "__main__":
     roi_s = [("", 0, num_ch-1)]
     if multi_roi:
         roi_s = [] # overwrite / empty
-        print()
+        print() # Assumes contiguous channels.
         num_roi = int(input("How many ROIs were recorded from? "))
-        for _i in range(num_roi):
+        start_ch = 0
+        for roi_id in range(num_roi):
             print()
-            roi_name = input(f"What's ROI #{_i+1}'s name? (e.g. VC) ")
-            if _i == 0: # only show this message one time
-                print("\nChannels are 1-indexed in this script, like in Matlab")
-                print("E.g. a 128 channel recording starts on 1 and ends on 128")
-            start_ch = int(input(f"\nWhich channel does {roi_name} start? ")) - 1
-            end_ch = int(input(f"\nWhich channel does {roi_name} end? ")) - 1
+            roi_name = input(f"What's ROI #{roi_id+1}'s name? (e.g. VC) ")
+            roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
+            roi_num_ch = int(roi_num_ch) - 1
+            end_ch = start_ch + roi_num_ch
             roi_info = (roi_name, start_ch, end_ch)
             roi_s.append(roi_info)
-    # small sanity check that at least first and last channel are included
+            start_ch = end_ch + 1
+    # check that first and last channel are included
     first_ch, last_ch = False, False
     for _, st, end in roi_s:
         if st == 0:
             first_ch = True
         if end == num_ch - 1:
             last_ch = True
-    err_txt = "channels 0 and {num_ch - 1} not specified. Incorrect user input."
+    err_txt = "Channels 1 and {num_ch} not included in user setup."
     assert first_ch and last_ch, err_txt
+
+    animals = []
+    for d in dirs:
+        name = "doesn't matter :)"
+        if saveLFP or saveAnalog:
+            name = input(f"\nWhat is the animal's ID for {d}?\n\n")
+        assert name != "", "names cannot be empty"
+        animals.append(name)
+
+    processing_start = time.time()
 
     # ask for user inputs before this long loop if possible!
     overwrite = None
     for animal_id, d in zip(animals, dirs):
         d = os.path.normpath(d)
-        sub_save_dir = os.path.join(save_dir, os.path.basename(d))
-        os.makedirs(sub_save_dir, exist_ok=True)
-        sub_save_dir = os.path.abspath(sub_save_dir)
+        if d == save_dir:
+            sub_save_dir = d
+        else:
+            sub_save_dir = os.path.join(save_dir, os.path.basename(d))
+            os.makedirs(sub_save_dir, exist_ok=True)
+            sub_save_dir = os.path.abspath(sub_save_dir)
+        
         lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
         lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
         digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
-        analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')
-        # can protect data or allow quickly resuming after an error
-        old_data = glob.glob(os.path.join(sub_save_dir,'*shifted.bin'))
-        if old_data:
-            if overwrite == None:
-                print()
-                overwrite = input('Old binaries found! Overwrite? (y/n) ')
-                overwrite = ('y' in overwrite) or ('Y' in overwrite)
-            if overwrite == False:
-                continue               
+        analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
     
         starts = 0
         dig_in = np.array([])
@@ -168,8 +186,7 @@ if __name__ == "__main__":
             amp_data_n  = []
             for c in range(num_ch):
                 shifted = channel_shift([amp_data[c]], [shift[c]])
-                shifted_offset = np.array(shifted[0] - 32768, dtype=np.int16)
-                amp_data_n.append(shifted_offset)
+                amp_data_n.append(shifted)
             del amp_data
             amp_data_n = np.array(amp_data_n)
             for r_i, roi in enumerate(roi_s):
@@ -177,7 +194,8 @@ if __name__ == "__main__":
                 offset = roi_offsets[r_i]
                 roi_data = amp_data_n[start:end+1]
                 shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
-                shape = (roi_data.shape[1] + int(offset / roi_data.shape[0] / 2), roi_data.shape[0])
+                rows, cols = roi_data.shape
+                shape = (cols + int(offset / rows / 2), rows)
                 m = 'w+'
                 if i > 0:
                     m = 'r+' # extend if already created
@@ -212,3 +230,11 @@ if __name__ == "__main__":
             np.save(lfp_filename, amp_data_mmap)
             np.save(lfpts_filename, amp_ts_mmap)
             np.save(digIn_filename, dig_in)
+
+print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
+
+# cupy / GPU memory cleanup            
+mempool = cp.get_default_memory_pool()
+pinned_mempool = cp.get_default_pinned_memory_pool()
+mempool.free_all_blocks()
+pinned_mempool.free_all_blocks()
