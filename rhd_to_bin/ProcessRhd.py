@@ -149,6 +149,9 @@ if __name__ == "__main__":
 
     processing_start = time.time()
 
+    # @TODO Could parallelize this loop, but at least lfp's .npy gets big
+    # so we would want to use np.memmap in a similar way as the binary
+    
     # ask for user inputs before this long loop if possible!
     overwrite = None
     for animal_id, d in zip(animals, dirs):
