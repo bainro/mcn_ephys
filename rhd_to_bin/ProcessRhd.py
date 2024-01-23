@@ -16,7 +16,7 @@ from intanutil.get_bytes_per_data_block import get_bytes_per_data_block
 
 
 def downsample(factors, sig):
-    '''
+    ''' 
     Avoids NaNs by calling decimate multiple times:
     docs.scipy.org/doc/scipy/reference/generated/scipy.signal.decimate.html
     '''
