@@ -10,3 +10,5 @@ desktop.ini
 .DS_Store/
 spyder_crash.log
 .DS_Store
+**/__pycache__
+__pycache__
