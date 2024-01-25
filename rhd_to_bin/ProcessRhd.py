@@ -79,21 +79,30 @@ if __name__ == "__main__":
         # in case someone is silly enough to append a trailing comma
         if dirs[-1] == "":
             del dirs[-1]
+    dirs = list(set(dirs)) # remove duplicates
     assert len(dirs) > 0, "No input directories specified :("
     for d in dirs:
         assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
     if gui:
         print("A GUI / dialog box should appear. It might be in the background")
-        default = input("Save outputs to the same input directory(s)? (y/n) ")
-        default_save = ('y' in default) or ('Y' in default)
-        if not default_save:
+        save_dir = input("\nSave outputs to the same input directory(s)? (y/n) ")
+        save_dir = ('y' in save_dir) or ('Y' in save_dir)
+        if save_dir:
+            save_dir = None
+        else:
             save_dir = filedialog.askopenfile(title="Select directory to save outputs")
-        ### @TODO finish this code ... 
+            os.makedirs(save_dir, exist_ok=True)
+            save_dir = os.path.abspath(save_dir)
     else:
-        save_dir = input('\nWhere would you like to save the outputs? \n\n')
-        os.makedirs(save_dir, exist_ok=True)
-        save_dir = os.path.abspath(save_dir)
+        save_dir = input("Save outputs to the same input directory(s)? (y/n) ")
+        save_dir = ('y' in save_dir) or ('Y' in save_dir)
+        if save_dir:
+            save_dir = None
+        else:
+            save_dir = input('\nWhere would you like to save the outputs? \n\n')
+            os.makedirs(save_dir, exist_ok=True)
+            save_dir = os.path.abspath(save_dir)
 
     saveLFP = input('\nWould you like to save the LFP? (y/n) ')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
@@ -185,7 +194,7 @@ if __name__ == "__main__":
     overwrite = None
     for animal_id, d in zip(animals, dirs):        
         d = os.path.normpath(d)
-        if d == save_dir:
+        if d == save_dir or save_dir == None:
             sub_save_dir = d
         else:
             sub_save_dir = os.path.join(save_dir, os.path.basename(d))
@@ -193,8 +202,8 @@ if __name__ == "__main__":
             sub_save_dir = os.path.abspath(sub_save_dir)
         
         # Create empty CRASHED file. Remove at end to signify success.
-        crash_file = os.path.join(sub_save_dir, 'CRASHED', 'w')
-        with open(crash_file) as _:
+        crash_file = os.path.join(sub_save_dir, 'CRASHED')
+        with open(crash_file, 'w') as _:
             pass
         
         lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
@@ -268,9 +277,9 @@ if __name__ == "__main__":
             
         # remove CRASHED file to signify processing completion
         os.remove(crash_file)
-        log_file = os.path.join(sub_save_dir, 'log.txt', 'w')
+        log_file = os.path.join(sub_save_dir, 'log.txt')
         # let user know how many RHD files were processed
-        with open(log_file) as log_f:
+        with open(log_file, 'w') as log_f:
             log_f.write(f"{len(files)} RHD files processed.")
             
 print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
