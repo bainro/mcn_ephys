@@ -202,7 +202,7 @@ if __name__ == "__main__":
             sub_save_dir = os.path.abspath(sub_save_dir)
         
         # Create empty CRASHED file. Remove at end to signify success.
-        crash_file = os.path.join(sub_save_dir, 'CRASHED')
+        crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
         with open(crash_file, 'w') as _:
             pass
         
