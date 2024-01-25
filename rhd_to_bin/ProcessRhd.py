@@ -189,19 +189,22 @@ if __name__ == "__main__":
 
     # @TODO Could parallelize this loop, but at least lfp's .npy gets big
     # so we would want to use np.memmap in a similar way as the binary
+    # vars to make global and mutex lock when accessing:
+    # vars to pass into each thread as args (if not too many lock, add here?):
+    # animal_id, d, roi_s, save_dir, saveAnalog, saveLFP, num_ch (can get from amp_data), 
+    # subsample_total, subsample_factors
     
     # ask for user inputs before this long loop if possible!
-    overwrite = None
     for animal_id, d in zip(animals, dirs):        
         d = os.path.normpath(d)
-        if d == save_dir or save_dir == None:
+        if d == save_dir or save_dir == None
             sub_save_dir = d
         else:
             sub_save_dir = os.path.join(save_dir, os.path.basename(d))
             os.makedirs(sub_save_dir, exist_ok=True)
             sub_save_dir = os.path.abspath(sub_save_dir)
         
-        # Create empty CRASHED file. Remove at end to signify success.
+        # User requested file. Removed upon successful completion.
         crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
         with open(crash_file, 'w') as _:
             pass
