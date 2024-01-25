@@ -63,7 +63,7 @@ def dir_worker(**kwargs):
     subsample_total = np.prod(subsample_factors)
     
     d = os.path.normpath(d)
-    if d == save_dir or save_dir == None
+    if d == save_dir or save_dir == None:
         sub_save_dir = d
     else:
         sub_save_dir = os.path.join(save_dir, os.path.basename(d))
