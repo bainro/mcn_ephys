@@ -149,9 +149,6 @@ if __name__ == "__main__":
 
     processing_start = time.time()
 
-    # @TODO Could parallelize this loop, but at least lfp's .npy gets big
-    # so we would want to use np.memmap in a similar way as the binary
-    
     # ask for user inputs before this long loop if possible!
     overwrite = None
     for animal_id, d in zip(animals, dirs):
@@ -233,9 +230,3 @@ if __name__ == "__main__":
             np.save(digIn_filename, dig_in)
 
 print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
-
-# cupy / GPU memory cleanup            
-mempool = cp.get_default_memory_pool()
-pinned_mempool = cp.get_default_pinned_memory_pool()
-mempool.free_all_blocks()
-pinned_mempool.free_all_blocks()
