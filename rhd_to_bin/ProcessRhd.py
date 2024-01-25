@@ -137,9 +137,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             rows, cols = amp_data_n.shape
             shape = (cols + int(lfp_offset / rows / 2), rows)
-            # !!! @TODO add header to .npy so it works with np.load:
-            # https://stackoverflow.com/a/44533628/1707865
-            arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape)
+            arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape, offset=128)
             lfp_offset += 2 * np.prod(amp_data_n.shape, dtype=np.float64) 
             # append to the end of the large binary file
             arr[-cols:,:] = amp_data_n.T
@@ -149,7 +147,12 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
     if saveLFP:
-        # np.save(lfp_filename, amp_data_mmap)
+        # add headers to .npy so it works with np.load()
+        lfp = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape)
+        header = np.lib.format.header_data_from_array_1_0(lfp)
+        with open(lfp_filename, 'r+b') as f:
+            np.lib.format.write_array_header_1_0(f, header)
+        del lfp
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_filename, dig_in)
         
