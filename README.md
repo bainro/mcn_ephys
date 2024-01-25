@@ -6,6 +6,13 @@ conda create -n ephys -y cython h5py joblib matplotlib pillow pip requests respo
 conda activate ephys
 ```
 
+## Download the latest code (i.e. update already downloaded code)
+```
+cd mcn_ephys
+git checkout main
+git pull
+```
+
 ## Try out the development branch (more bugs guaranteed!):
 ```git checkout dev```
 
