@@ -79,8 +79,8 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     dig_in = np.array([])
     analog_in = np.array([])
     amp_ts_mmap = np.array([])
-    amp_data_mmap = np.array([[]] * num_ch)    
-    roi_offsets = [0] * len(roi_s) 
+    roi_offsets = [0] * len(roi_s)
+    lfp_offset = 0
     files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
     if len(files) == 0:
         return
@@ -109,7 +109,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             roi_data = amp_data_n[start:end+1]
             shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
             rows, cols = roi_data.shape
-            shape = (cols + int(offset / rows / 2), rows)
+            shape = (cols + int(offset / rows / 2), rows) # 16bits == 2bytes
             m = 'w+'
             if i > 0:
                 m = 'r+' # extend if already created
@@ -117,7 +117,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             # update this ROI's binary file offset
             roi_offsets[r_i] += 2 * np.prod(roi_data.shape, dtype=np.float64) 
             # append to the end of the large binary file
-            arr[-roi_data.shape[-1]:,:] = roi_data.T
+            arr[-cols:,:] = roi_data.T
             del arr
         if saveLFP:
             # convert microvolts for lfp conversion
@@ -132,16 +132,24 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             starts = ts[-1] + 1.0 / fs    
             ind = np.arange(start_i, size, subsample_total)
             ts = ts[ind]
-            amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
-            amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
             dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
             amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
+            amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
+            rows, cols = amp_data_n.shape
+            shape = (cols + int(lfp_offset / rows / 2), rows)
+            # !!! @TODO add header to .npy so it works with np.load:
+            # https://stackoverflow.com/a/44533628/1707865
+            arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape)
+            lfp_offset += 2 * np.prod(amp_data_n.shape, dtype=np.float64) 
+            # append to the end of the large binary file
+            arr[-cols:,:] = amp_data_n.T
+            del arr
         del amp_data_n
 
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
     if saveLFP:
-        np.save(lfp_filename, amp_data_mmap)
+        # np.save(lfp_filename, amp_data_mmap)
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_filename, dig_in)
         
@@ -282,10 +290,6 @@ if __name__ == "__main__":
         animals.append(name)
 
     processing_start = time.time()
-
-    ###################
-    ### @TODO Finish parallelizing with np.memmap for the other output .npy's
-    ###################
     
     # ask for user inputs before this long loop if possible!
     dir_workers = []
