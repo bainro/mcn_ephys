@@ -57,6 +57,101 @@ def channel_shift(data, sample_shifts):
 
     return cp.asnumpy(shifted_and_offset)
 
+def dir_worker(**kwargs):
+    for k in kwargs.keys():
+        eval(f"{k} = kwargs[{k}]")
+    subsample_total = np.prod(subsample_factors)
+    
+    d = os.path.normpath(d)
+    if d == save_dir or save_dir == None
+        sub_save_dir = d
+    else:
+        sub_save_dir = os.path.join(save_dir, os.path.basename(d))
+        os.makedirs(sub_save_dir, exist_ok=True)
+        sub_save_dir = os.path.abspath(sub_save_dir)
+    
+    # User requested file. Removed upon successful completion.
+    crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
+    with open(crash_file, 'w') as _:
+        pass
+    
+    lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
+    lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
+    digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
+    analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
+
+    starts = 0
+    dig_in = np.array([])
+    analog_in = np.array([])
+    amp_ts_mmap = np.array([])
+    amp_data_mmap = np.array([[]] * num_ch)    
+    roi_offsets = [0] * len(roi_s) 
+    files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
+    for i, filename in enumerate(files):
+        filename = os.path.basename(filename)
+        print("\n ***** Loading: " + filename)
+        rhd_path = os.path.join(d, filename)
+        ts, amp_data, digIN, analogIN, fs = read_data(rhd_path)
+        num_ch = amp_data.shape[0]
+        if saveAnalog:
+            analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
+        else:
+            del analogIN
+        amp_data_n  = []
+        for c in range(num_ch):
+            shifted = channel_shift([amp_data[c]], [shift[c]])
+            amp_data_n.append(shifted)
+        del amp_data
+        amp_data_n = np.array(amp_data_n)
+        for r_i, roi in enumerate(roi_s):
+            name, start, end = roi
+            offset = roi_offsets[r_i]
+            roi_data = amp_data_n[start:end+1]
+            shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
+            rows, cols = roi_data.shape
+            shape = (cols + int(offset / rows / 2), rows)
+            m = 'w+'
+            if i > 0:
+                m = 'r+' # extend if already created
+            arr = np.memmap(shifted_path, dtype='int16', mode=m, shape=shape)
+            # update this ROI's binary file offset
+            roi_offsets[r_i] += 2 * np.prod(roi_data.shape, dtype=np.float64) 
+            # append to the end of the large binary file
+            arr[-roi_data.shape[-1]:,:] = roi_data.T
+            del arr
+        if saveLFP:
+            # convert microvolts for lfp conversion
+            amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
+            print("REAL FS = " + str(1.0 / np.nanmedian(np.diff(ts))))
+            size = amp_data_n.shape[1]
+            fs = fs / float(subsample_total)
+            if i == 0:
+                start_i = 0
+            else:
+                start_i = np.where(ts >= starts)[0][0]
+            starts = ts[-1] + 1.0 / fs    
+            ind = np.arange(start_i, size, subsample_total)
+            ts = ts[ind]
+            amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
+            amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
+            dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
+            amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
+        del amp_data_n
+
+    if saveAnalog:
+        np.save(analogIn_filename, analog_in)
+    if saveLFP:
+        np.save(lfp_filename, amp_data_mmap)
+        np.save(lfpts_filename, amp_ts_mmap)
+        np.save(digIn_filename, dig_in)
+        
+    # remove CRASHED file to signify processing completion
+    os.remove(crash_file)
+    log_file = os.path.join(sub_save_dir, 'log.txt')
+    # let user know how many RHD files were processed
+    with open(log_file, 'w') as log_f:
+        log_f.write(f"{len(files)} RHD files processed.")
+
 if __name__ == "__main__":    
     dirs = []
     if gui:
@@ -187,103 +282,29 @@ if __name__ == "__main__":
 
     processing_start = time.time()
 
-    # @TODO Could parallelize this loop, but at least lfp's .npy gets big
-    # so we would want to use np.memmap in a similar way as the binary
-    # vars to make global and mutex lock when accessing:
-    # vars to pass into each thread as args (if not too many lock, add here?):
-    # animal_id, d, roi_s, save_dir, saveAnalog, saveLFP, num_ch (can get from amp_data), 
-    # subsample_total, subsample_factors
+    ###################
+    ### @TODO Finish parallelizing with np.memmap for the other output .npy's
+    ###################
     
     # ask for user inputs before this long loop if possible!
-    for animal_id, d in zip(animals, dirs):        
-        d = os.path.normpath(d)
-        if d == save_dir or save_dir == None
-            sub_save_dir = d
-        else:
-            sub_save_dir = os.path.join(save_dir, os.path.basename(d))
-            os.makedirs(sub_save_dir, exist_ok=True)
-            sub_save_dir = os.path.abspath(sub_save_dir)
-        
-        # User requested file. Removed upon successful completion.
-        crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
-        with open(crash_file, 'w') as _:
-            pass
-        
-        lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
-        lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
-        digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
-        analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
-    
-        starts = 0
-        dig_in = np.array([])
-        analog_in = np.array([])
-        amp_ts_mmap = np.array([])
-        amp_data_mmap = np.array([[]] * num_ch)    
-        roi_offsets = [0] * len(roi_s) 
-        files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
-        for i, filename in enumerate(files):
-            filename = os.path.basename(filename)
-            print("\n ***** Loading: " + filename)
-            rhd_path = os.path.join(d, filename)
-            ts, amp_data, digIN, analogIN, fs = read_data(rhd_path) 
-            if saveAnalog:
-                analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
-            else:
-                del analogIN
-            amp_data_n  = []
-            for c in range(num_ch):
-                shifted = channel_shift([amp_data[c]], [shift[c]])
-                amp_data_n.append(shifted)
-            del amp_data
-            amp_data_n = np.array(amp_data_n)
-            for r_i, roi in enumerate(roi_s):
-                name, start, end = roi
-                offset = roi_offsets[r_i]
-                roi_data = amp_data_n[start:end+1]
-                shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
-                rows, cols = roi_data.shape
-                shape = (cols + int(offset / rows / 2), rows)
-                m = 'w+'
-                if i > 0:
-                    m = 'r+' # extend if already created
-                arr = np.memmap(shifted_path, dtype='int16', mode=m, shape=shape)
-                # update this ROI's binary file offset
-                roi_offsets[r_i] += 2 * np.prod(roi_data.shape, dtype=np.float64) 
-                # append to the end of the large binary file
-                arr[-roi_data.shape[-1]:,:] = roi_data.T
-                del arr
-            if saveLFP:
-                # convert microvolts for lfp conversion
-                amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
-                print("REAL FS = " + str(1.0 / np.nanmedian(np.diff(ts))))
-                size = amp_data_n.shape[1]
-                fs = fs / float(subsample_total)
-                if i == 0:
-                    start_i = 0
-                else:
-                    start_i = np.where(ts >= starts)[0][0]
-                starts = ts[-1] + 1.0 / fs    
-                ind = np.arange(start_i, size, subsample_total)
-                ts = ts[ind]
-                amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
-                amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
-                dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
-                amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
-            del amp_data_n
-    
-        if saveAnalog:
-            np.save(analogIn_filename, analog_in)
-        if saveLFP:
-            np.save(lfp_filename, amp_data_mmap)
-            np.save(lfpts_filename, amp_ts_mmap)
-            np.save(digIn_filename, dig_in)
-            
-        # remove CRASHED file to signify processing completion
-        os.remove(crash_file)
-        log_file = os.path.join(sub_save_dir, 'log.txt')
-        # let user know how many RHD files were processed
-        with open(log_file, 'w') as log_f:
-            log_f.write(f"{len(files)} RHD files processed.")
+    dir_workers = []
+    for animal_id, d in zip(animals, dirs):
+        args = {
+            'd' = d,
+            'roi_s' = roi_s,
+            'saveLFP' = saveLFP,
+            'save_dir' = save_dir,
+            'animal_id' = animal_id,
+            'saveAnalog' = saveAnalog,
+            'subsample_factors' = subsample_factors
+        }
+        # start each experiment / directory in a parallel thread
+        worker = threading.Thread(target=dir_worker, kwargs=args)
+        worker.start()
+        dir_workers.append(worker)
+    # wait for them all to finish
+    for w in dir_workers:
+        w.join()
             
 print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
 
