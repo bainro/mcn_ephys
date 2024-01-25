@@ -60,6 +60,7 @@ def channel_shift(data, sample_shifts):
 if __name__ == "__main__":    
     dirs = []
     if gui:
+        print("A GUI / dialog box should appear. It might be in the background")
         t = "Choose directory(s) with RHD files."
         while True:
             d = filedialog.askdirectory(mustexist=True, title=t)
@@ -83,6 +84,7 @@ if __name__ == "__main__":
         assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
     if gui:
+        print("A GUI / dialog box should appear. It might be in the background")
         default = input("Save outputs to the same input directory(s)? (y/n) ")
         default_save = ('y' in default) or ('Y' in default)
         if not default_save:
