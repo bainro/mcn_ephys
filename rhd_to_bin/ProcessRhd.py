@@ -13,6 +13,15 @@ os.chdir(script_dir)
 from intanutil.read_data import read_data
 from intanutil.read_header import read_header
 from intanutil.get_bytes_per_data_block import get_bytes_per_data_block
+# fallback to cmd line prompts when gui not available
+try:
+    gui = True
+    import tkinter as tk
+    from tkinter import filedialog
+    gui_root = tk.Tk()
+    gui_root.withdraw()
+except:
+    gui = False
 
 
 def downsample(factors, sig):
@@ -49,22 +58,40 @@ def channel_shift(data, sample_shifts):
     return cp.asnumpy(shifted_and_offset)
 
 if __name__ == "__main__":    
-    print()
-    dirs_txt = "Which directories do you want to process? You may specify multiple. " 
-    dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
-    dirs_txt += "It is also assumed that all recordings have the same probe setup. "
-    dirs_txt += "List your directories separated by commas. \n"
-    dirs_txt += "E.g. C:\\animal1_day1, C:\\animal2_day6 \n\n"
-    dirs = input(dirs_txt).replace(", ", ",").split(',')
-    # in case someone is silly enough to append a trailing comma
-    if dirs[-1] == "":
-        del dirs[-1]
+    dirs = []
+    if gui:
+        t = "Choose directory(s) with RHD files."
+        while True:
+            d = filedialog.askdirectory(mustexist=True, title=t)
+            if d == () or d == '':
+                break
+            else:
+                dirs.append(d)
+    else:
+        print()
+        dirs_txt = "Which directories do you want to process? You may specify multiple. " 
+        dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
+        dirs_txt += "It is also assumed that all recordings have the same probe setup. "
+        dirs_txt += "List your directories separated by commas. \n"
+        dirs_txt += "E.g. C:\\animal1_day1, C:\\animal2_day6 \n\n"
+        dirs = input(dirs_txt).replace(", ", ",").split(',')
+        # in case someone is silly enough to append a trailing comma
+        if dirs[-1] == "":
+            del dirs[-1]
+    assert len(dirs) > 0, "No input directories specified :("
     for d in dirs:
         assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
-    save_dir = input('\nWhere would you like to save the outputs? \n\n')
-    os.makedirs(save_dir, exist_ok=True)
-    save_dir = os.path.abspath(save_dir)
+    if gui:
+        default = input("Save outputs to the same input directory(s)? (y/n) ")
+        default_save = ('y' in default) or ('Y' in default)
+        if not default_save:
+            save_dir = filedialog.askopenfile(title="Select directory to save outputs")
+        ### @TODO finish this code ... 
+    else:
+        save_dir = input('\nWhere would you like to save the outputs? \n\n')
+        os.makedirs(save_dir, exist_ok=True)
+        save_dir = os.path.abspath(save_dir)
 
     saveLFP = input('\nWould you like to save the LFP? (y/n) ')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
@@ -107,23 +134,24 @@ if __name__ == "__main__":
     num_ch = header['num_amplifier_channels']
     shift = np.tile(np.linspace(-1,0,32), num_ch // 32)
     print()
-    multi_roi = f"{num_ch} recording channels found. "
-    multi_roi += "You can split these into multiple ROIs (e.g. VC & PCC). "
-    multi_roi += "Each ROI gets its own binary file(s). "
-    multi_roi += "Would you like to split ? (y/n) "
-    multi_roi = input(multi_roi)
-    multi_roi = ('y' in multi_roi) or ('Y' in multi_roi)
+    num_roi = f"{num_ch} recording channels found.\n"
+    num_roi += "How many ROIs were recorded from? "
+    num_roi = int(input(num_roi))
+    num_roi = ('y' in num_roi) or ('Y' in num_roi)
     # [(naming_prefix, start channel, end channel)]
     roi_s = [("", 0, num_ch-1)]
-    if multi_roi:
+    if num_roi > 1:
         roi_s = [] # overwrite / empty
-        print() # Assumes contiguous channels.
-        num_roi = int(input("How many ROIs were recorded from? "))
         start_ch = 0
         for roi_id in range(num_roi):
             print()
             roi_name = input(f"What's ROI #{roi_id+1}'s name? (e.g. VC) ")
-            roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
+            # for people who don't read the prompt... *cough* winny *cough*
+            try:
+                roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
+                int(roi_num_ch)
+            except:
+                roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
             roi_num_ch = int(roi_num_ch) - 1
             end_ch = start_ch + roi_num_ch
             roi_info = (roi_name, start_ch, end_ch)
@@ -154,7 +182,7 @@ if __name__ == "__main__":
     
     # ask for user inputs before this long loop if possible!
     overwrite = None
-    for animal_id, d in zip(animals, dirs):
+    for animal_id, d in zip(animals, dirs):        
         d = os.path.normpath(d)
         if d == save_dir:
             sub_save_dir = d
@@ -162,6 +190,11 @@ if __name__ == "__main__":
             sub_save_dir = os.path.join(save_dir, os.path.basename(d))
             os.makedirs(sub_save_dir, exist_ok=True)
             sub_save_dir = os.path.abspath(sub_save_dir)
+        
+        # Create empty CRASHED file. Remove at end to signify success.
+        crash_file = os.path.join(sub_save_dir, 'CRASHED', 'w')
+        with open(crash_file) as _:
+            pass
         
         lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
         lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
@@ -231,8 +264,18 @@ if __name__ == "__main__":
             np.save(lfp_filename, amp_data_mmap)
             np.save(lfpts_filename, amp_ts_mmap)
             np.save(digIn_filename, dig_in)
-
+            
+        # remove CRASHED file to signify processing completion
+        os.remove(crash_file)
+        log_file = os.path.join(sub_save_dir, 'log.txt', 'w')
+        # let user know how many RHD files were processed
+        with open(log_file) as log_f:
+            log_f.write(f"{len(files)} RHD files processed.")
+            
 print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
+
+if gui:
+    gui_root.destroy()
 
 # cupy / GPU memory cleanup            
 mempool = cp.get_default_memory_pool()
