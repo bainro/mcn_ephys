@@ -9,7 +9,6 @@ conda activate ephys
 ## Download the latest code (i.e. update already downloaded code)
 ```
 cd mcn_ephys
-git checkout main
 git pull
 ```
 
