@@ -245,7 +245,7 @@ if __name__ == "__main__":
                     m = 'r+' # extend if already created
                 arr = np.memmap(shifted_path, dtype='int16', mode=m, shape=shape)
                 # update this ROI's binary file offset
-                roi_offsets[r_i] += 2 * np.prod(roi_data.shape) 
+                roi_offsets[r_i] += 2 * np.prod(roi_data.shape, dtype=np.float64) 
                 # append to the end of the large binary file
                 arr[-roi_data.shape[-1]:,:] = roi_data.T
                 del arr
