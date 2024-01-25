@@ -2,6 +2,7 @@ import os
 import math
 import glob
 import time
+import threading
 import cupy as cp
 import numpy as np
 import scipy.signal as spsig
@@ -57,9 +58,8 @@ def channel_shift(data, sample_shifts):
 
     return cp.asnumpy(shifted_and_offset)
 
-def dir_worker(**kwargs):
-    for k in kwargs.keys():
-        eval(f"{k} = kwargs[{k}]")
+def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog, 
+               save_dir, animal_id, subsample_factors):
     subsample_total = np.prod(subsample_factors)
     
     d = os.path.normpath(d)
@@ -69,11 +69,6 @@ def dir_worker(**kwargs):
         sub_save_dir = os.path.join(save_dir, os.path.basename(d))
         os.makedirs(sub_save_dir, exist_ok=True)
         sub_save_dir = os.path.abspath(sub_save_dir)
-    
-    # User requested file. Removed upon successful completion.
-    crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
-    with open(crash_file, 'w') as _:
-        pass
     
     lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
     lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
@@ -87,12 +82,17 @@ def dir_worker(**kwargs):
     amp_data_mmap = np.array([[]] * num_ch)    
     roi_offsets = [0] * len(roi_s) 
     files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
+    if len(files) == 0:
+        return
+    # User requested file. Removed upon successful completion.
+    crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
+    with open(crash_file, 'w') as _:
+        pass
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
         print("\n ***** Loading: " + filename)
         rhd_path = os.path.join(d, filename)
         ts, amp_data, digIN, analogIN, fs = read_data(rhd_path)
-        num_ch = amp_data.shape[0]
         if saveAnalog:
             analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
         else:
@@ -155,7 +155,7 @@ def dir_worker(**kwargs):
 if __name__ == "__main__":    
     dirs = []
     if gui:
-        print("A GUI / dialog box should appear in the background. Press 'cancel' or ESC to end.")
+        print("\nA GUI / dialog box should appear in the background. Press 'cancel' or ESC to end.")
         t = "Choose directory(s) with RHD files."
         while True:
             d = filedialog.askdirectory(mustexist=True, title=t)
@@ -180,7 +180,7 @@ if __name__ == "__main__":
         assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
     if gui:
-        print("A GUI / dialog box should appear. It might be in the background")
+        print("\nA GUI / dialog box should appear. It might be in the background")
         save_dir = input("\nSave outputs to the same input directory(s)? (y/n) ")
         save_dir = ('y' in save_dir) or ('Y' in save_dir)
         if save_dir:
@@ -204,6 +204,7 @@ if __name__ == "__main__":
     saveAnalog = input('\nWould you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
     
+    subsample_factors = [0]
     if saveLFP:
         subsample_factors = [5, 6]
         subsample_total = np.prod(subsample_factors)
@@ -290,13 +291,14 @@ if __name__ == "__main__":
     dir_workers = []
     for animal_id, d in zip(animals, dirs):
         args = {
-            'd' = d,
-            'roi_s' = roi_s,
-            'saveLFP' = saveLFP,
-            'save_dir' = save_dir,
-            'animal_id' = animal_id,
-            'saveAnalog' = saveAnalog,
-            'subsample_factors' = subsample_factors
+            'd': d,
+            'roi_s': roi_s,
+            'num_ch': num_ch,
+            'saveLFP': saveLFP,
+            'save_dir': save_dir,
+            'animal_id': animal_id,
+            'saveAnalog': saveAnalog,
+            'subsample_factors': subsample_factors
         }
         # start each experiment / directory in a parallel thread
         worker = threading.Thread(target=dir_worker, kwargs=args)
