@@ -60,7 +60,7 @@ def channel_shift(data, sample_shifts):
 if __name__ == "__main__":    
     dirs = []
     if gui:
-        print("A GUI / dialog box should appear. It might be in the background")
+        print("A GUI / dialog box should appear in the background. Press 'cancel' or ESC to end.")
         t = "Choose directory(s) with RHD files."
         while True:
             d = filedialog.askdirectory(mustexist=True, title=t)
