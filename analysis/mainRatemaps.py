@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 21 19:03:43 2019
-
-@author: rajat
-"""
-
 import os
 import rmaputils 
 import numpy as np
