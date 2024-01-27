@@ -205,7 +205,7 @@ if __name__ == "__main__":
         if save_dir:
             save_dir = None
         else:
-            save_dir = filedialog.askopenfile(title="Select directory to save outputs")
+            save_dir = filedialog.askdirectory(title="Select directory to save outputs")
             os.makedirs(save_dir, exist_ok=True)
             save_dir = os.path.abspath(save_dir)
     else:
