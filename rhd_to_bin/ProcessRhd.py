@@ -21,7 +21,9 @@ try:
     from tkinter import filedialog
     gui_root = tk.Tk()
     # windows ('nt') vs linux
-    if not os.name == 'nt':
+    if os.name == 'nt':
+        gui_root.attributes('-topmost', True, '-alpha', 0)
+    else:
         gui_root.withdraw()
 except:
     gui = False
