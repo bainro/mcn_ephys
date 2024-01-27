@@ -8,7 +8,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 # THRESHOLD PARAMS
 speedTh = 2 # cm/s
-MAX_CHAN = 256
 
 # HALLWAY information
 HALLWAYS = [1,2,28] # hallways numbers, Classroom: 1, Sunset:2, Universal: 28
