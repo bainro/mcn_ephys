@@ -143,11 +143,11 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             rows, cols = amp_data_n.shape
-            shape = (cols + int(lfp_offset / rows / 2), rows).T
+            shape = (rows, cols + int(lfp_offset / rows / 2))
             arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape, offset=128)
             lfp_offset += 2 * np.prod(amp_data_n.shape, dtype=np.float64) 
             # append to the end of the large binary file
-            arr[-cols:,:] = amp_data_n
+            arr[:,-cols:] = amp_data_n
             del arr
         del amp_data_n
 
