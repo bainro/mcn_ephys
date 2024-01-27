@@ -20,7 +20,7 @@ try:
     import tkinter as tk
     from tkinter import filedialog
     gui_root = tk.Tk()
-    os.name == 'nt': # MS windows
+    if os.name == 'nt': # MS windows
         gui_root.withdraw()
 except:
     gui = False
