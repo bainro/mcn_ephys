@@ -27,3 +27,6 @@ spyder -p .
 ```
 python rhd_to_bin/ProcessRhd.py
 ```
+
+#### Contributions:
+Original [repo](https://github.com/rajatsaxena/mea/tree/main) of Rajat Saxena's.
