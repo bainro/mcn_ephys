@@ -77,10 +77,12 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
     lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
     digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
+    digIn_ts_filename = os.path.join(sub_save_dir, animal_id+'-digInts.npy')
     analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
 
     starts = 0
     dig_in = np.array([])
+    dig_in_ts = np.array([])
     analog_in = np.array([])
     amp_ts_mmap = np.array([])
     roi_offsets = [0] * len(roi_s)
@@ -135,9 +137,10 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
                 start_i = np.where(ts >= starts)[0][0]
             starts = ts[-1] + 1.0 / fs    
             ind = np.arange(start_i, size, subsample_total)
-            ts = ts[ind]
+            amp_ts = ts[ind]
             dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
-            amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
+            dig_in_ts = np.concatenate((dig_in_ts, ts))
+            amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             rows, cols = amp_data_n.shape
             shape = (cols + int(lfp_offset / rows / 2), rows)
@@ -158,6 +161,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             np.lib.format.write_array_header_1_0(f, header)
         del lfp
         np.save(lfpts_filename, amp_ts_mmap)
+        np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
         
     # remove CRASHED file to signify processing completion
