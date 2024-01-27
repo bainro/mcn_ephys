@@ -178,6 +178,9 @@ if __name__ == "__main__":
         t = "Choose directory(s) with RHD files."
         while True:
             d = filedialog.askdirectory(mustexist=True, title=t)
+            # windows ('nt') vs linux
+            if os.name == 'nt':
+                gui_root.attributes('-topmost', True, '-alpha', 0)
             if d == () or d == '':
                 break
             else:
@@ -206,6 +209,9 @@ if __name__ == "__main__":
             save_dir = None
         else:
             save_dir = filedialog.askdirectory(title="Select directory to save outputs")
+            # windows ('nt') vs linux
+            if os.name == 'nt':
+                gui_root.attributes('-topmost', True, '-alpha', 0)
             os.makedirs(save_dir, exist_ok=True)
             save_dir = os.path.abspath(save_dir)
     else:
