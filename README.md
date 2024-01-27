@@ -2,7 +2,7 @@
 ```
 git clone https://github.com/bainro/mcn_ephys.git
 cd mcn_ephys
-conda create -n ephys -y cython h5py joblib matplotlib pillow pip requests responses scikit-learn scipy spyder opencv conda-forge::cupy python=3.9
+conda create -n ephys -y cython h5py joblib matplotlib pillow pip requests responses scikit-learn scipy spyder opencv natsort conda-forge::cupy python=3.9
 conda activate ephys
 ```
 
