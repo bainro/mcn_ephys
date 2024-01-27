@@ -19,12 +19,11 @@ linecolors = {1:'b', 2:'darkorange', 28:'r'}
 fspos = 30.
 dt = 1./fspos
 posMin = 0
-posMax = 314 #cm
-binwidth = 314/100 #cm
+posMax = 314 # cm
+cm_per_bin = 314 / 100
 gsmooth = 0.25
-bin2cm = binwidth
 xt = np.array([0,50,100])
-xtcm = xt*binwidth
+xtcm = xt * cm_per_bin
 
 # LFP variables
 fslfp = 1000.0
@@ -72,12 +71,12 @@ for dname, st, et in zip(filename, start_time, end_time):
         # load the hallway trial data
         behavd = behavd['trial_data'] 
         posX, posT, posSpeed, trStart, trEnd, omaptr = rmaputils.loadOccupancy(behavd, posMin=posMin, 
-                                                                                  posMax=posMax, binwidth=binwidth, 
+                                                                                  posMax=posMax, binwidth=cm_per_bin, 
                                                                                   speedThr=speedTh, dt=dt)
         # create occupancy map
         omaptrsm, omaptrnorm, omap1d, omap1dsm, omapbins = rmaputils.processOccupancy(omaptr, posX, 
                                                                                       posMin=posMin, posMax=posMax, 
-                                                                                      binwidth=binwidth, smwindow=gsmooth)
+                                                                                      binwidth=cm_per_bin, smwindow=gsmooth)
         # save hallway occupancy data for each animal
         animaldat[hallwaynum] = {}
         animaldat[hallwaynum]['posX'] = posX
@@ -129,7 +128,7 @@ for dname, st, et in zip(filename, start_time, end_time):
             # calcualte spike map
             spkmaptr, spkmaptrsm, spkmaptrnorm, spkmap1d, spkmap1dsm = rmaputils.processSpikeMap(spkPosTrial, spkPos, 
                                                                                                  animaldat[hallwaynum]['omapbins'], posMin=posMin, 
-                                                                                                 posMax=posMax, binwidth=binwidth, 
+                                                                                                 posMax=posMax, binwidth=cm_per_bin, 
                                                                                                  smwindow=gsmooth)
             # calculate ratemaps
             rmaptr, rmaptrsm, rmaptrnorm, rmap1d, rmap1dsm, _ = rmaputils.processRateMap(spkmaptr, animaldat[hallwaynum]['omaptr'], spkmaptrsm, 
@@ -144,10 +143,10 @@ for dname, st, et in zip(filename, start_time, end_time):
             sinfo_p, shuffledinfo = rmaputils.calcShuffleSpatialInfo(sinfo, spikets, animaldat[hallwaynum]['omap1dsm'], animaldat[hallwaynum]['posT'][-1], 
                                                                      animaldat[hallwaynum]['posT'][0], animaldat[hallwaynum]['trStart'], animaldat[hallwaynum]['trEnd'], 
                                                                      animaldat[hallwaynum]['posX'], animaldat[hallwaynum]['posT'], animaldat[hallwaynum]['posSpeed'],  
-                                                                     animaldat[hallwaynum]['omapbins'], posMin=posMin, posMax=posMax, binwidth=binwidth, fs=fspos)
+                                                                     animaldat[hallwaynum]['omapbins'], posMin=posMin, posMax=posMax, binwidth=cm_per_bin, fs=fspos)
             # get placefield statistics: num field, field peak firing rate, size, center, dispersion
             if sinfo_p<0.01:
-                pfmap, pfPeakFr, pfCenter, pfSize, pfNumFields, pfDispersion = rmaputils.calcfieldSize(rmap1dsm, rmaptrsm, pixel2cm=bin2cm, L=posMax)
+                pfmap, pfPeakFr, pfCenter, pfSize, pfNumFields, pfDispersion = rmaputils.calcfieldSize(rmap1dsm, rmaptrsm, pixel2cm=cm_per_bin, L=posMax)
             else:
                 pfmap, pfPeakFr, pfCenter, pfSize, pfNumFields, pfDispersion = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
             # calculate tmi 
@@ -199,6 +198,6 @@ for dname, st, et in zip(filename, start_time, end_time):
     pdfname = os.path.join(rmapdirname, dname+'-op.pdf')
     with PdfPages(pdfname) as pdf: 
         for cid in clusterId:
-            fig = rmaputils.genAnalysisReport(animaldat, HALLWAYS, cid, rewardLocs, xt, xtcm, colors, linecolors, posMin=posMin, posMax=posMax, binwidth=binwidth)
+            fig = rmaputils.genAnalysisReport(animaldat, HALLWAYS, cid, rewardLocs, xt, xtcm, colors, linecolors, posMin=posMin, posMax=posMax, binwidth=cm_per_bin)
             pdf.savefig(fig, dpi=100)
             plt.close()
