@@ -152,7 +152,6 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         del amp_data_n
 
     if saveAnalog:
-        analog_in = analog_in.T
         np.save(analogIn_filename, analog_in)
     if saveLFP:
         # add headers to .npy so it works with np.load()
@@ -161,9 +160,6 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         with open(lfp_filename, 'r+b') as f:
             np.lib.format.write_array_header_1_0(f, header)
         del lfp
-        amp_ts_mmap = amp_ts_mmap.T
-        dig_in_ts = dig_in_ts.T
-        dig_in = dig_in.T
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
