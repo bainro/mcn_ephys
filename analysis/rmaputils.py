@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 19 02:37:57 2020
-
-@author: mcnlab
-"""
-
 import os
 import bisect, sys
 import numpy as np
