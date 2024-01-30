@@ -135,24 +135,15 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             fs = fs / float(subsample_total)
             if i == 0:
                 start_i = 0
-                ind = np.arange(0, size, subsample_total)
             else:
                 start_i = np.where(ts >= starts)[0][0]
-                ind = np.arange(start_i, size, subsample_total)
+            ind = np.arange(start_i, size, subsample_total)    
             amp_ts = ts[ind]
             starts = amp_ts[-1] + 1.0 / fs
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
             dig_in_ts = np.concatenate((dig_in_ts, ts))
             amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
-            '''
-            rows, cols = amp_data_n.shape
-            shape = (rows, cols + round(lfp_offset / rows / 4))
-            arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
-            lfp_offset += 4 * np.prod(amp_data_n.shape, dtype=np.float64) 
-            # append to the end of the large binary file
-            arr[:,-cols:] = amp_data_n
-            '''
             rows, cols = amp_data_n.shape
             shape = (cols + round(lfp_offset / rows / 4), rows)
             arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
@@ -165,13 +156,13 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
     if saveLFP:
-        arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+        lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
         # create a memory-mapped .npy file with the same dimensions and dtype
-        tmp = open_memmap(lfp_filename, mode='w+', dtype=arr.dtype, shape=arr.shape[::-1])
+        npy = open_memmap(lfp_filename, mode='w+', dtype=lfp.dtype, shape=lfp.shape[::-1])
         # copy the array contents
-        tmp[:,:] = arr.T[:,:]
-        del arr
-        del tmp
+        npy[:,:] = lfp.T[:,:]
+        del lfp
+        del npy
         os.remove(lfp_bin_name)
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
