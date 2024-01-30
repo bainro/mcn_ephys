@@ -7,6 +7,7 @@ import cupy as cp
 import numpy as np
 import scipy.signal as spsig
 from natsort import natsorted
+from numpy.lib.format import open_memmap
 # fixes "No module named intanutil" err
 script_path = os.path.abspath(__file__)
 script_dir = os.path.dirname(script_path)
@@ -74,6 +75,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         os.makedirs(sub_save_dir, exist_ok=True)
         sub_save_dir = os.path.abspath(sub_save_dir)
     
+    lfp_bin_name = os.path.join(sub_save_dir, animal_id+'-lfp.bin')
     lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
     lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
     digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
@@ -143,24 +145,34 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
             dig_in_ts = np.concatenate((dig_in_ts, ts))
             amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
+            '''
             rows, cols = amp_data_n.shape
-            shape = (rows, cols + int(lfp_offset / rows / 2))
-            arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape, offset=64)
-            lfp_offset += 2 * np.prod(amp_data_n.shape, dtype=np.float64) 
+            shape = (rows, cols + round(lfp_offset / rows / 4))
+            arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+            lfp_offset += 4 * np.prod(amp_data_n.shape, dtype=np.float64) 
             # append to the end of the large binary file
             arr[:,-cols:] = amp_data_n
+            '''
+            rows, cols = amp_data_n.shape
+            shape = (cols + round(lfp_offset / rows / 4), rows)
+            arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+            lfp_offset += 4 * np.prod(amp_data_n.shape, dtype=np.float64) 
+            # append to the end of the large binary file
+            arr[-cols:,:] = amp_data_n.T
             del arr
         del amp_data_n
 
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
     if saveLFP:
-        # add headers to .npy so it works with np.load()
-        lfp = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape)
-        header = np.lib.format.header_data_from_array_1_0(lfp)
-        with open(lfp_filename, 'r+b') as f:
-            np.lib.format.write_array_header_1_0(f, header)
-        del lfp
+        arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+        # create a memory-mapped .npy file with the same dimensions and dtype
+        tmp = open_memmap(lfp_filename, mode='w+', dtype=arr.dtype, shape=arr.shape[::-1])
+        # copy the array contents
+        tmp[:,:] = arr.T[:,:]
+        del arr
+        del tmp
+        os.remove(lfp_bin_name)
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
