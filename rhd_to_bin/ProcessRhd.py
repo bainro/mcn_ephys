@@ -133,36 +133,34 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             fs = fs / float(subsample_total)
             if i == 0:
                 start_i = 0
+                ind = np.arange(0, size, subsample_total)
             else:
                 start_i = np.where(ts >= starts)[0][0]
-            starts = ts[-1] + 1.0 / fs    
-            ind = np.arange(start_i, size, subsample_total)
+                ind = np.arange(start_i, size, subsample_total)
             amp_ts = ts[ind]
+            starts = amp_ts[-1] + 1.0 / fs
+            amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
             dig_in_ts = np.concatenate((dig_in_ts, ts))
             amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
-            amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             rows, cols = amp_data_n.shape
             shape = (rows, cols + int(lfp_offset / rows / 2))
-            arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape) # , offset=128)
+            arr = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape, offset=64)
             lfp_offset += 2 * np.prod(amp_data_n.shape, dtype=np.float64) 
             # append to the end of the large binary file
             arr[:,-cols:] = amp_data_n
-            print("\n\n\n", np.sum(amp_data_n))
             del arr
         del amp_data_n
 
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
     if saveLFP:
-        '''
         # add headers to .npy so it works with np.load()
         lfp = np.memmap(lfp_filename, dtype='int16', mode=m, shape=shape)
         header = np.lib.format.header_data_from_array_1_0(lfp)
         with open(lfp_filename, 'r+b') as f:
             np.lib.format.write_array_header_1_0(f, header)
         del lfp
-        '''
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
