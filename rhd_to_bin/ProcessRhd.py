@@ -2,10 +2,12 @@ import os
 import math
 import glob
 import time
+import threading
 import cupy as cp
 import numpy as np
 import scipy.signal as spsig
 from natsort import natsorted
+from numpy.lib.format import open_memmap
 # fixes "No module named intanutil" err
 script_path = os.path.abspath(__file__)
 script_dir = os.path.dirname(script_path)
@@ -13,6 +15,19 @@ os.chdir(script_dir)
 from intanutil.read_data import read_data
 from intanutil.read_header import read_header
 from intanutil.get_bytes_per_data_block import get_bytes_per_data_block
+# fallback to cmd line prompts when gui not available
+try:
+    gui = True
+    import tkinter as tk
+    from tkinter import filedialog
+    gui_root = tk.Tk()
+    # windows ('nt') vs linux
+    if os.name == 'nt':
+        gui_root.attributes('-topmost', True, '-alpha', 0)
+    else:
+        gui_root.withdraw()
+except:
+    gui = False
 
 
 def downsample(factors, sig):
@@ -48,29 +63,177 @@ def channel_shift(data, sample_shifts):
 
     return cp.asnumpy(shifted_and_offset)
 
+def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog, 
+               save_dir, animal_id, subsample_factors):
+    subsample_total = np.prod(subsample_factors)
+    
+    d = os.path.normpath(d)
+    if d == save_dir or save_dir == None:
+        sub_save_dir = d
+    else:
+        sub_save_dir = os.path.join(save_dir, os.path.basename(d))
+        os.makedirs(sub_save_dir, exist_ok=True)
+        sub_save_dir = os.path.abspath(sub_save_dir)
+    
+    lfp_bin_name = os.path.join(sub_save_dir, animal_id+'-lfp.bin')
+    lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
+    lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
+    digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
+    digIn_ts_filename = os.path.join(sub_save_dir, animal_id+'-digInts.npy')
+    analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
+
+    starts = 0
+    dig_in = np.array([])
+    dig_in_ts = np.array([])
+    analog_in = np.array([])
+    amp_ts_mmap = np.array([])
+    roi_offsets = [0] * len(roi_s)
+    lfp_offset = 0
+    files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
+    if len(files) == 0:
+        return
+    # User requested file. Removed upon successful completion.
+    crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
+    with open(crash_file, 'w') as _:
+        pass
+    for i, filename in enumerate(files):
+        filename = os.path.basename(filename)
+        print("\n ***** Loading: " + filename)
+        rhd_path = os.path.join(d, filename)
+        ts, amp_data, digIN, analogIN, fs = read_data(rhd_path)
+        if saveAnalog:
+            analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
+        else:
+            del analogIN
+        amp_data_n  = []
+        for c in range(num_ch):
+            shifted = channel_shift([amp_data[c]], [shift[c]])
+            amp_data_n.append(shifted)
+        del amp_data
+        amp_data_n = np.array(amp_data_n)
+        for r_i, roi in enumerate(roi_s):
+            name, start, end = roi
+            offset = roi_offsets[r_i]
+            roi_data = amp_data_n[start:end+1]
+            shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
+            rows, cols = roi_data.shape
+            shape = (cols + int(offset / rows / 2), rows) # 16bits == 2bytes
+            m = 'w+'
+            if i > 0:
+                m = 'r+' # extend if already created
+            arr = np.memmap(shifted_path, dtype='int16', mode=m, shape=shape)
+            # update this ROI's binary file offset
+            roi_offsets[r_i] += 2 * np.prod(roi_data.shape, dtype=np.float64) 
+            # append to the end of the large binary file
+            arr[-cols:,:] = roi_data.T
+            del arr
+        if saveLFP:
+            # convert microvolts for lfp conversion
+            amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
+            print("REAL FS = " + str(1.0 / np.nanmedian(np.diff(ts))))
+            size = amp_data_n.shape[1]
+            fs = fs / float(subsample_total)
+            if i == 0:
+                start_i = 0
+            else:
+                start_i = np.where(ts >= starts)[0][0]
+            ind = np.arange(start_i, size, subsample_total)    
+            amp_ts = ts[ind]
+            starts = amp_ts[-1] + 1.0 / fs
+            amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
+            dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
+            dig_in_ts = np.concatenate((dig_in_ts, ts))
+            amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
+            rows, cols = amp_data_n.shape
+            shape = (cols + round(lfp_offset / rows / 4), rows)
+            arr = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+            lfp_offset += 4 * np.prod(amp_data_n.shape, dtype=np.float64) 
+            # append to the end of the large binary file
+            arr[-cols:,:] = amp_data_n.T
+            del arr
+        del amp_data_n
+
+    if saveAnalog:
+        np.save(analogIn_filename, analog_in)
+    if saveLFP:
+        lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+        # create a memory-mapped .npy file with the same dimensions and dtype
+        npy = open_memmap(lfp_filename, mode='w+', dtype=lfp.dtype, shape=lfp.shape[::-1])
+        # copy the array contents
+        npy[:,:] = lfp.T[:,:]
+        del lfp
+        del npy
+        os.remove(lfp_bin_name)
+        np.save(lfpts_filename, amp_ts_mmap)
+        np.save(digIn_ts_filename, dig_in_ts)
+        np.save(digIn_filename, dig_in)
+        
+    # remove CRASHED file to signify processing completion
+    os.remove(crash_file)
+    log_file = os.path.join(sub_save_dir, 'log.txt')
+    # let user know how many RHD files were processed
+    with open(log_file, 'w') as log_f:
+        log_f.write(f"{len(files)} RHD files processed.")
+
 if __name__ == "__main__":    
-    print()
-    dirs_txt = "Which directories do you want to process? You may specify multiple. " 
-    dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
-    dirs_txt += "It is also assumed that all recordings have the same probe setup. "
-    dirs_txt += "List your directories separated by commas. \n"
-    dirs_txt += "E.g. C:\\animal1_day1, C:\\animal2_day6 \n\n"
-    dirs = input(dirs_txt).replace(", ", ",").split(',')
-    # in case someone is silly enough to append a trailing comma
-    if dirs[-1] == "":
-        del dirs[-1]
+    dirs = []
+    if gui:
+        print("\nA GUI / dialog box should appear in the background. Press 'cancel' or ESC to end.")
+        t = "Choose directory(s) with RHD files."
+        while True:
+            d = filedialog.askdirectory(mustexist=True, title=t)
+            # windows ('nt') vs linux
+            if os.name == 'nt':
+                gui_root.attributes('-topmost', True, '-alpha', 0)
+            if d == () or d == '':
+                break
+            else:
+                dirs.append(d)
+    else:
+        print()
+        dirs_txt = "Which directories do you want to process? You may specify multiple. " 
+        dirs_txt += "It is assumed that each directory has .rhd files for one animal recording. "
+        dirs_txt += "It is also assumed that all recordings have the same probe setup. "
+        dirs_txt += "List your directories separated by commas. \n"
+        dirs_txt += "E.g. C:\\animal1_day1, C:\\animal2_day6 \n\n"
+        dirs = input(dirs_txt).replace(", ", ",").split(',')
+        # in case someone is silly enough to append a trailing comma
+        if dirs[-1] == "":
+            del dirs[-1]
+    dirs = list(set(dirs)) # remove duplicates
+    assert len(dirs) > 0, "No input directories specified :("
     for d in dirs:
         assert os.path.exists(d), f'Recording directory {d} could not be found :('
     
-    save_dir = input('\nWhere would you like to save the outputs? \n\n')
-    os.makedirs(save_dir, exist_ok=True)
-    save_dir = os.path.abspath(save_dir)
+    if gui:
+        print("\nA GUI / dialog box should appear. It might be in the background")
+        save_dir = input("\nSave outputs to the same input directory(s)? (y/n) ")
+        save_dir = ('y' in save_dir) or ('Y' in save_dir)
+        if save_dir:
+            save_dir = None
+        else:
+            save_dir = filedialog.askdirectory(title="Select directory to save outputs")
+            # windows ('nt') vs linux
+            if os.name == 'nt':
+                gui_root.attributes('-topmost', True, '-alpha', 0)
+            os.makedirs(save_dir, exist_ok=True)
+            save_dir = os.path.abspath(save_dir)
+    else:
+        save_dir = input("Save outputs to the same input directory(s)? (y/n) ")
+        save_dir = ('y' in save_dir) or ('Y' in save_dir)
+        if save_dir:
+            save_dir = None
+        else:
+            save_dir = input('\nWhere would you like to save the outputs? \n\n')
+            os.makedirs(save_dir, exist_ok=True)
+            save_dir = os.path.abspath(save_dir)
 
     saveLFP = input('\nWould you like to save the LFP? (y/n) ')
     saveLFP = ('y' in saveLFP) or ('Y' in saveLFP)
     saveAnalog = input('\nWould you like to save the analog signal? (y/n) ')
     saveAnalog = ('y' in saveAnalog) or ('Y' in saveAnalog)
     
+    subsample_factors = [0]
     if saveLFP:
         subsample_factors = [5, 6]
         subsample_total = np.prod(subsample_factors)
@@ -107,23 +270,23 @@ if __name__ == "__main__":
     num_ch = header['num_amplifier_channels']
     shift = np.tile(np.linspace(-1,0,32), num_ch // 32)
     print()
-    multi_roi = f"{num_ch} recording channels found. "
-    multi_roi += "You can split these into multiple ROIs (e.g. VC & PCC). "
-    multi_roi += "Each ROI gets its own binary file(s). "
-    multi_roi += "Would you like to split ? (y/n) "
-    multi_roi = input(multi_roi)
-    multi_roi = ('y' in multi_roi) or ('Y' in multi_roi)
+    num_roi = f"{num_ch} recording channels found.\n"
+    num_roi += "How many ROIs were recorded from? "
+    num_roi = int(input(num_roi))
     # [(naming_prefix, start channel, end channel)]
     roi_s = [("", 0, num_ch-1)]
-    if multi_roi:
+    if num_roi > 1:
         roi_s = [] # overwrite / empty
-        print() # Assumes contiguous channels.
-        num_roi = int(input("How many ROIs were recorded from? "))
         start_ch = 0
         for roi_id in range(num_roi):
             print()
             roi_name = input(f"What's ROI #{roi_id+1}'s name? (e.g. VC) ")
-            roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
+            # for people who don't read the prompt... *cough* winny *cough*
+            try:
+                roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
+                int(roi_num_ch)
+            except:
+                roi_num_ch = input(f"\nHow many channels does {roi_name} have? ")
             roi_num_ch = int(roi_num_ch) - 1
             end_ch = start_ch + roi_num_ch
             roi_info = (roi_name, start_ch, end_ch)
@@ -148,85 +311,35 @@ if __name__ == "__main__":
         animals.append(name)
 
     processing_start = time.time()
-
+    
     # ask for user inputs before this long loop if possible!
-    overwrite = None
+    dir_workers = []
     for animal_id, d in zip(animals, dirs):
-        d = os.path.normpath(d)
-        if d == save_dir:
-            sub_save_dir = d
-        else:
-            sub_save_dir = os.path.join(save_dir, os.path.basename(d))
-            os.makedirs(sub_save_dir, exist_ok=True)
-            sub_save_dir = os.path.abspath(sub_save_dir)
-        
-        lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
-        lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
-        digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
-        analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
-    
-        starts = 0
-        dig_in = np.array([])
-        analog_in = np.array([])
-        amp_ts_mmap = np.array([])
-        amp_data_mmap = np.array([[]] * num_ch)    
-        roi_offsets = [0] * len(roi_s) 
-        files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
-        for i, filename in enumerate(files):
-            filename = os.path.basename(filename)
-            print("\n ***** Loading: " + filename)
-            rhd_path = os.path.join(d, filename)
-            ts, amp_data, digIN, analogIN, fs = read_data(rhd_path) 
-            if saveAnalog:
-                analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
-            else:
-                del analogIN
-            amp_data_n  = []
-            for c in range(num_ch):
-                shifted = channel_shift([amp_data[c]], [shift[c]])
-                amp_data_n.append(shifted)
-            del amp_data
-            amp_data_n = np.array(amp_data_n)
-            for r_i, roi in enumerate(roi_s):
-                name, start, end = roi
-                offset = roi_offsets[r_i]
-                roi_data = amp_data_n[start:end+1]
-                shifted_path = os.path.join(sub_save_dir, name + '_shifted_merged.bin')
-                rows, cols = roi_data.shape
-                shape = (cols + int(offset / rows / 2), rows)
-                m = 'w+'
-                if i > 0:
-                    m = 'r+' # extend if already created
-                arr = np.memmap(shifted_path, dtype='int16', mode=m, shape=shape)
-                # update this ROI's binary file offset
-                roi_offsets[r_i] += 2 * np.prod(roi_data.shape, dtype=np.float64)
-                # append to the end of the large binary file
-                arr[-roi_data.shape[-1]:,:] = roi_data.T
-                del arr
-            if saveLFP:
-                # convert microvolts for lfp conversion
-                amp_data_n = np.multiply(0.195, amp_data_n, dtype=np.float32)
-                print("REAL FS = " + str(1.0 / np.nanmedian(np.diff(ts))))
-                size = amp_data_n.shape[1]
-                fs = fs / float(subsample_total)
-                if i == 0:
-                    start_i = 0
-                else:
-                    start_i = np.where(ts >= starts)[0][0]
-                starts = ts[-1] + 1.0 / fs    
-                ind = np.arange(start_i, size, subsample_total)
-                ts = ts[ind]
-                amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
-                amp_data_mmap = np.concatenate((amp_data_mmap, amp_data_n), 1)
-                dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
-                amp_ts_mmap = np.concatenate((amp_ts_mmap, ts))
-            del amp_data_n
-    
-        if saveAnalog:
-            np.save(analogIn_filename, analog_in)
-        if saveLFP:
-            np.save(lfp_filename, amp_data_mmap)
-            np.save(lfpts_filename, amp_ts_mmap)
-            np.save(digIn_filename, dig_in)
-
+        args = {
+            'd': d,
+            'roi_s': roi_s,
+            'num_ch': num_ch,
+            'saveLFP': saveLFP,
+            'save_dir': save_dir,
+            'animal_id': animal_id,
+            'saveAnalog': saveAnalog,
+            'subsample_factors': subsample_factors
+        }
+        # start each experiment / directory in a parallel thread
+        worker = threading.Thread(target=dir_worker, kwargs=args)
+        worker.start()
+        dir_workers.append(worker)
+    # wait for them all to finish
+    for w in dir_workers:
+        w.join()
+            
 print(f"{(time.time() - processing_start) / 60:.2f} minutes to finish processing")
+
+if gui:
+    gui_root.destroy()
+
+# cupy / GPU memory cleanup            
+mempool = cp.get_default_memory_pool()
+pinned_mempool = cp.get_default_pinned_memory_pool()
+mempool.free_all_blocks()
+pinned_mempool.free_all_blocks()
