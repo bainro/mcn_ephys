@@ -103,7 +103,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         ts, amp_data, digIN, analogIN, fs = read_data(rhd_path)
         if saveAnalog:
             if type(analog_in) == type(None):
-                analog_in = analogIn
+                analog_in = analogIN
             else:
                 analog_in = np.concatenate((analog_in, analogIN), 1, dtype=np.float32)
         else:
