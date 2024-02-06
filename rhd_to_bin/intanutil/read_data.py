@@ -182,4 +182,4 @@ def read_data(filename):
     result = data_to_result(header, data, data_present)
 
     print('Done!  Elapsed time: {0:0.1f} seconds'.format(time.time() - tic))
-    return result['t_amplifier'], result['amplifier_data'], data['board_dig_in_raw'], data['board_adc_data'], result['frequency_parameters']['amplifier_sample_rate']
+    return result['t_amplifier'], result['amplifier_data'], data['board_dig_in_data'], data['board_adc_data'], result['frequency_parameters']['amplifier_sample_rate']
