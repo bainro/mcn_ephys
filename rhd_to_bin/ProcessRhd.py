@@ -162,6 +162,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
+        assert lfp.shape[1] == num_ch, f'{lfp.shape[1]} != {num_ch}'
         for c in range(num_ch):
             lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
             # create a memory-mapped .npy file with the same dimensions and dtype
