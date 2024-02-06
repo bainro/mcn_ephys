@@ -83,7 +83,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy')             
 
     starts = 0
-    dig_in = np.array([])
+    dig_in = None
     dig_in_ts = np.array([])
     analog_in = np.array([])
     amp_ts_mmap = np.array([])
@@ -141,7 +141,10 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             amp_ts = ts[ind]
             starts = amp_ts[-1] + 1.0 / fs
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
-            dig_in = np.concatenate((dig_in, digIN)).astype(np.uint8)
+            if dig_in == None:
+                dig_in = digIN
+            else:
+                dig_in = np.concatenate((dig_in, digIN), 1).astype(np.uint8)
             dig_in_ts = np.concatenate((dig_in_ts, ts))
             amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
             rows, cols = amp_data_n.shape
