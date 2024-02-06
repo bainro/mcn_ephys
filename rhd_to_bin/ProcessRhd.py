@@ -141,7 +141,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             amp_ts = ts[ind]
             starts = amp_ts[-1] + 1.0 / fs
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
-            if dig_in == None:
+            if type(dig_in) == type(None):
                 dig_in = digIN
             else:
                 dig_in = np.concatenate((dig_in, digIN), 1).astype(np.uint8)
@@ -162,13 +162,13 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
-        assert lfp.shape[1] == num_ch, f'{lfp.shape[1]} != {num_ch}'
         for c in range(num_ch):
             lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+            assert lfp.shape[1] == num_ch, f'{lfp.shape[1]} != {num_ch}'
             # create a memory-mapped .npy file with the same dimensions and dtype
-            m2 = 'w+'
+            m2 = 'r+'
             if c == 0:
-                m2 = 'r+'
+                m2 = 'w+'
             npy = open_memmap(lfp_filename, mode=m2, dtype=lfp.dtype, shape=lfp.shape[::-1])
             # copy the array contents
             npy[c,:] = lfp.T[c,:]
