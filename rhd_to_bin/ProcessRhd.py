@@ -159,17 +159,21 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     if saveAnalog:
         np.save(analogIn_filename, analog_in)
     if saveLFP:
-        lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
-        # create a memory-mapped .npy file with the same dimensions and dtype
-        npy = open_memmap(lfp_filename, mode='w+', dtype=lfp.dtype, shape=lfp.shape[::-1])
-        # copy the array contents
-        npy[:,:] = lfp.T[:,:]
-        del lfp
-        del npy
-        os.remove(lfp_bin_name)
         np.save(lfpts_filename, amp_ts_mmap)
         np.save(digIn_ts_filename, dig_in_ts)
         np.save(digIn_filename, dig_in)
+        for c in range(num_ch):
+            lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
+            # create a memory-mapped .npy file with the same dimensions and dtype
+            m2 = 'w+'
+            if c == 0:
+                m2 = 'r+'
+            npy = open_memmap(lfp_filename, mode=m2, dtype=lfp.dtype, shape=lfp.shape[::-1])
+            # copy the array contents
+            npy[c,:] = lfp.T[c,:]
+            del lfp
+            del npy
+        os.remove(lfp_bin_name)
         
     # remove CRASHED file to signify processing completion
     os.remove(crash_file)
