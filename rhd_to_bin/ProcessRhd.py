@@ -85,7 +85,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     starts = 0
     dig_in = None
     dig_in_ts = np.array([])
-    analog_in = np.array([])
+    analog_in = None
     amp_ts_mmap = np.array([])
     roi_offsets = [0] * len(roi_s)
     lfp_offset = 0
@@ -102,7 +102,10 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         rhd_path = os.path.join(d, filename)
         ts, amp_data, digIN, analogIN, fs = read_data(rhd_path)
         if saveAnalog:
-            analog_in = np.concatenate((analog_in, analogIN[0]), dtype=np.float32)
+            if type(analog_in) == type(None):
+                analog_in = analogIn
+            else:
+                analog_in = np.concatenate((analog_in, analogIN), 1, dtype=np.float32)
         else:
             del analogIN
         amp_data_n  = []
