@@ -15,9 +15,8 @@ def hash_files(files):
     
     for i, d1 in enumerate(digests[:-1]):
         d2 = digests[i+1]
-        f1 = files[i]
-        f2 = files[i+1]
-        return False
+        if d1 != d2:
+            return False
     return True
 
 if __name__ == "__main__":
