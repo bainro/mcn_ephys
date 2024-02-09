@@ -282,7 +282,7 @@ if __name__ == "__main__":
     shift = np.tile(np.linspace(-1,0,32), num_ch // 32)
     print()
     num_roi = f"{num_ch} recording channels found.\n"
-    num_roi += "How many ROIs were recorded from? "
+    num_roi += "How many region of interest were recorded from? "
     num_roi = int(input(num_roi))
     # [(naming_prefix, start channel, end channel)]
     roi_s = [("", 0, num_ch-1)]
