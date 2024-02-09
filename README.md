@@ -13,7 +13,7 @@ cd mcn_ephys
 git pull
 ```
 
-### Try out the development branch (more bugs guaranteed!):
+### If you want to try out the development branch (more bugs guaranteed!):
 ```git checkout dev```
 
 ### Switch back to the release/main branch:
