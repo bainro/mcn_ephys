@@ -1,5 +1,5 @@
 ## Installation:
-Requires [anaconda](https://www.anaconda.com/download) and nvidia GPU drivers.
+Requires [anaconda](https://www.anaconda.com/download) and nvidia GPU drivers (can check for them by running ```nvidia-smi``` on the command line).
 ```
 git clone https://github.com/bainro/mcn_ephys.git
 cd mcn_ephys
