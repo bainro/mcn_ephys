@@ -1,5 +1,4 @@
 import os
-import numpy as np
 from compare_hashes import hash_files
 
 if __name__ == "__main__":  
@@ -12,15 +11,22 @@ if __name__ == "__main__":
         exit()
         
     old_dir = input("Where did you download the gdrive folder too (full path)? ")
+    assert os.path.exists(old_dir), f'Old results directory {old_dir} could not be found :('
     
-    new_txt = input("Where are the latest results saved? These will be compared to the old gdrive results. ")
-    
-    new_dir = input(dirs_txt).replace(", ", ",").split(',')
-    assert len(new_dir) == 1, "No input directories specified :("
+    new_dir = input("Where are the latest results saved? These will be compared to the old gdrive results. ")
     assert os.path.exists(new_dir), f'New results directory {new_dir} could not be found :('
 
-    lfp_filename = os.path.join(sub_save_dir, animal_id+'-lfp.npy')
-    lfpts_filename = os.path.join(sub_save_dir, animal_id+'-lfpts.npy')
-    digIn_filename = os.path.join(sub_save_dir, animal_id+'-digIn.npy')
-    digIn_ts_filename = os.path.join(sub_save_dir, animal_id+'-digInts.npy')
-    analogIn_filename = os.path.join(sub_save_dir, animal_id+'-analogIn.npy') 
+    # Only included one binary to save gdrive space
+    files_to_compare = [
+        "VC_shifted_merged.bin", 
+        "a1-lfp.npy", 
+        "a1-lfpts.npy", 
+        "a1-digInts.npy", 
+        "a1-digInts.npy", 
+        "a1-analogIn.npy"
+    ]
+
+    for f in files_to_compare: 
+        old = os.path.join(old_dir, f)
+        new = os.path.join(new_dir, f)
+        assert hash_files([old, new]), "{old} and {new} are different! :("
