@@ -25,3 +25,4 @@ if __name__ == "__main__":
     for f in sys.argv[1:]:
         files.append(os.path.join(f))
     assert hash_files(files), "Files are different :("
+    print("Files are identical :)")
