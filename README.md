@@ -1,5 +1,5 @@
 ## Installation:
-Requires anaconda: [Link](https://www.anaconda.com/download).
+Requires anaconda: [Link](https://www.anaconda.com/download), nvidia GPU drivers, and CUDA toolkit.
 ```
 git clone https://github.com/bainro/mcn_ephys.git
 cd mcn_ephys
