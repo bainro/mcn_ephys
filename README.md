@@ -24,7 +24,7 @@ git pull
 spyder -p .
 ```
 
-### Run on the command line:
+### Or run on the command line:
 ```
 python rhd_to_bin/ProcessRhd.py
 ```
