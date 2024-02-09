@@ -3,6 +3,7 @@ import sys
 import hashlib
 
 def hash_files(files):
+    # checks that all files are identical
     digests = []
     for filename in files:
         hasher = hashlib.md5()
