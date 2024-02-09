@@ -7,6 +7,15 @@ conda create -n ephys -y cython h5py joblib matplotlib pillow pip requests respo
 conda activate ephys
 ```
 
+### Run with spyder:
+```
+spyder -p .
+```
+
+### Or run on the command line:
+```
+python rhd_to_bin/ProcessRhd.py
+```
 ### Download the latest code (i.e. update already downloaded code)
 ```
 cd mcn_ephys
@@ -18,16 +27,6 @@ git pull
 
 ### Switch back to the release/main branch:
 ```git checkout main```
-
-### Run with spyder:
-```
-spyder -p .
-```
-
-### Or run on the command line:
-```
-python rhd_to_bin/ProcessRhd.py
-```
 
 #### Contributions:
 Original [repo](https://github.com/rajatsaxena/mea/tree/main) of Rajat Saxena's.
