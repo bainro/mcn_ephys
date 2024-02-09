@@ -29,4 +29,4 @@ if __name__ == "__main__":
     for f in files_to_compare: 
         old = os.path.join(old_dir, f)
         new = os.path.join(new_dir, f)
-        assert hash_files([old, new]), "{old} and {new} are different! :("
+        assert hash_files([old, new]), f"{old} and {new} are different! :("
