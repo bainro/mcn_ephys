@@ -11,7 +11,6 @@ def hash_files(files):
             hasher.update(buf)
             a = hasher.hexdigest()
             digests.append(a)
-            print(a)
     
     for i, d1 in enumerate(digests[:-1]):
         d2 = digests[i+1]
