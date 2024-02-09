@@ -1,4 +1,5 @@
 ## Installation:
+Requires anaconda: (Link.)[https://www.anaconda.com/download]
 ```
 git clone https://github.com/bainro/mcn_ephys.git
 cd mcn_ephys
