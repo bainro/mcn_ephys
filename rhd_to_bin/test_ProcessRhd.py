@@ -19,11 +19,11 @@ if __name__ == "__main__":
 
     # Only included one binary to save gdrive space
     files_to_compare = [
-        "VC_shifted_merged.bin", 
         "a1-lfpts.npy", 
         "a1-digInts.npy", 
         "a1-digInts.npy", 
-        "a1-analogIn.npy"
+        "a1-analogIn.npy",
+        "VC_shifted_merged.bin",
     ]
 
     for f in files_to_compare: 
