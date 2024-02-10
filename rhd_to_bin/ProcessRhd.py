@@ -163,8 +163,11 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         np.save(analogIn_filename, analog_in)
     if saveLFP:
         np.save(lfpts_filename, amp_ts_mmap)
+        del amp_ts_mmap
         np.save(digIn_ts_filename, dig_in_ts)
+        del dig_in_ts
         np.save(digIn_filename, dig_in)
+        del dig_in
         for c in range(num_ch):
             lfp = np.memmap(lfp_bin_name, dtype='float32', mode=m, shape=shape)
             assert lfp.shape[1] == num_ch, f'{lfp.shape[1]} != {num_ch}'
