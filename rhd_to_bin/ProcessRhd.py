@@ -92,6 +92,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     amp_ts_mmap = np.array([])
     roi_offsets = [0] * len(roi_s)
     lfp_offset = 0
+    running_sum = 0
     files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
     if len(files) == 0:
         return
@@ -117,7 +118,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             amp_data_n.append(shifted)
         del amp_data
         amp_data_n = np.array(amp_data_n)
-        for r_i, roi in enumerate(roi_s):
+        for r_i, roi in enumerate(roi_s):            
             name, start, end = roi
             offset = roi_offsets[r_i]
             roi_data = amp_data_n[start:end+1]
@@ -149,34 +150,40 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             amp_data_n = downsample(subsample_factors, amp_data_n[:, start_i:])
             if h_offset == None:
                 # need to create a header before knowing the true size
-                # we'll make it padded and flat, then trim afterwards
+                # we'll make it padded and flat, then correct later
                 padded_ts = amp_data_n.shape[1]
                 padded_ts *= len(files)
-                padded_ts = int(padded_ts + 2000)
+                padded_ts = int(padded_ts + 1000)
                 padded_shape = (num_ch, padded_ts)
                 padded_shape = (np.prod(padded_shape, dtype=np.int64),)
                 hd = dict(
                     descr=np.lib.format.dtype_to_descr(dtype),
-                    fortran_order=False,
+                    fortran_order=True, # required for matlab's readNPY
                     shape=padded_shape,
                 )
                 with open(lfp_filename, 'w+b') as fp:
                     np.lib.format._write_array_header(fp, hd, (1,0))
                     h_offset = fp.tell() # always 128 but just to be safe
+            rows, cols = amp_data_n.shape
+            rhd_len = len(amp_data_n.flatten())
+            lfp_ = np.memmap(lfp_filename, dtype='float32', shape=padded_shape,
+                         mode='r+', offset=h_offset)
+            running_sum += amp_data_n.astype(np.float64).sum()
+            lfp_[lfp_offset:lfp_offset+rhd_len] = amp_data_n.T.flatten()
+            lfp_offset += rhd_len
+            true_shape[1] = true_shape[1] + cols
+            if i == len(files) - 1: # only run after processing last RHD
+                lfp_sum = lfp_.astype(np.float64).sum()
+                err_txt = f'{running_sum} !~= {lfp_sum}'
+                # allow a very small amount of wiggle room
+                assert abs(running_sum - lfp_sum) < 0.01, err_txt
+            del lfp_
             if type(dig_in) == type(None):
                 dig_in = digIN
             else:
                 dig_in = np.concatenate((dig_in, digIN), 1).astype(np.uint8)
             dig_in_ts = np.concatenate((dig_in_ts, ts))
             amp_ts_mmap = np.concatenate((amp_ts_mmap, amp_ts))
-            rows, cols = amp_data_n.shape
-            lfp = np.memmap(lfp_filename, dtype=dtype, shape=padded_shape, 
-                            mode='r+', offset=h_offset)
-            rhd_len = np.prod(amp_data_n.shape, dtype=np.int64) 
-            lfp[lfp_offset:lfp_offset+rhd_len] = amp_data_n.T.flatten()
-            lfp_offset += rhd_len
-            true_shape[1] += cols
-            del lfp
         del amp_data_n
 
     if saveAnalog:
