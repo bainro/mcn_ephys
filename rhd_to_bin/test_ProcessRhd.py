@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from compare_hashes import hash_files
 
 if __name__ == "__main__":  
@@ -19,7 +20,6 @@ if __name__ == "__main__":
     # Only included one binary to save gdrive space
     files_to_compare = [
         "VC_shifted_merged.bin", 
-        "a1-lfp.npy", 
         "a1-lfpts.npy", 
         "a1-digInts.npy", 
         "a1-digInts.npy", 
@@ -30,3 +30,13 @@ if __name__ == "__main__":
         old = os.path.join(old_dir, f)
         new = os.path.join(new_dir, f)
         assert hash_files([old, new]), f"{old} and {new} are different! :("
+
+    # hash comparison won't work due to variable amounts of extra padding
+    # so we do an element wise equality check instead
+    new = os.path.join(new_dir, "a1-lfp.npy")
+    old = os.path.join(old_dir, "a1-lfp.npy")
+    new_lfp = np.load(new)
+    old_lfp = np.load(old)
+    assert (new_lfp==old_lfp).all(), f"{old} and {new} are different! :("
+    
+    print("Congratulations! Test passed.")
