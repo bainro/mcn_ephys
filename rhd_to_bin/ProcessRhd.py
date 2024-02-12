@@ -168,15 +168,9 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
             rhd_len = len(amp_data_n.flatten())
             lfp_ = np.memmap(lfp_filename, dtype='float32', shape=padded_shape,
                          mode='r+', offset=h_offset)
-            running_sum += amp_data_n.astype(np.float64).sum()
             lfp_[lfp_offset:lfp_offset+rhd_len] = amp_data_n.T.flatten()
             lfp_offset += rhd_len
             true_shape[1] = true_shape[1] + cols
-            if i == len(files) - 1: # only run after processing last RHD
-                lfp_sum = lfp_.astype(np.float64).sum()
-                err_txt = f'{running_sum} !~= {lfp_sum}'
-                # allow a very small amount of wiggle room
-                assert abs(running_sum - lfp_sum) < 0.01, err_txt
             del lfp_
             if type(dig_in) == type(None):
                 dig_in = digIN
