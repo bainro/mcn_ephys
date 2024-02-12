@@ -3,7 +3,7 @@ Requires [anaconda](https://www.anaconda.com/download) (or [miniconda](https://d
 ```
 git clone https://github.com/bainro/mcn_ephys.git
 cd mcn_ephys
-conda create -n ephys -y cython h5py joblib matplotlib pillow pip requests responses scikit-learn scipy spyder opencv natsort conda-forge::cupy python=3.9
+conda create -n ephys -y cython h5py joblib matplotlib pillow pip requests responses scikit-learn scipy conda-forge::spyder opencv natsort conda-forge::cupy python=3.9
 conda activate ephys
 ```
 
