@@ -92,7 +92,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     amp_ts_mmap = np.array([])
     roi_offsets = [0] * len(roi_s)
     lfp_offset = 0
-    running_sum = 0
+
     files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
     if len(files) == 0:
         return
