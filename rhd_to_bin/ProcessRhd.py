@@ -263,6 +263,7 @@ if __name__ == "__main__":
         if not use_default:
             print()
             subsample_total = int(input("What downsampling factor would you like to use then? "))
+            subsample_factors = [subsample_total]
             # see downsample() for reasoning
             if subsample_total > 13:
                 power = math.ceil(np.emath.logn(13, subsample_total))
