@@ -96,10 +96,7 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
     files = natsorted(glob.glob(os.path.join(d, '*.rhd')))
     if len(files) == 0:
         return
-    # User requested file. Removed upon successful completion.
-    crash_file = os.path.join(sub_save_dir, 'CRASHED_removed_at_end')
-    with open(crash_file, 'w') as _:
-        pass
+
     for i, filename in enumerate(files):
         filename = os.path.basename(filename)
         print("\n ***** Loading: " + filename)
@@ -192,10 +189,8 @@ def dir_worker(d, roi_s, num_ch, saveLFP, saveAnalog,
         del dig_in_ts
         np.save(digIn_filename, dig_in)
         del dig_in
-        
-    # remove CRASHED file to signify processing completion
-    os.remove(crash_file)
-    log_file = os.path.join(sub_save_dir, 'log.txt')
+    
+    log_file = os.path.join(sub_save_dir, 'PASSED.txt')
     # let user know how many RHD files were processed
     with open(log_file, 'w') as log_f:
         log_f.write(f"{len(files)} RHD files processed.")
