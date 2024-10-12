@@ -16,6 +16,8 @@ spyder -p .
 ```
 python rhd_to_bin/ProcessRhd.py
 ```
+Note that the first popup window will open further windows in case you want to process several directories. Just press 'cancel' or the ESC key to continue.
+
 ### Download the latest code (i.e. update already downloaded code)
 ```
 cd mcn_ephys
