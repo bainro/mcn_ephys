@@ -154,7 +154,7 @@ params['min_isi'] = 0.0005
 params['isi_viol_th'] = 0.4 # 40% violations
 params['presence_ratio'] = 0.5
 params['firing_rate_th'] = 0.1 # 0.1Hz
-params['amp_cutoff_th'] = 0.01
+params['amp_cutoff_th'] = 0.01 # missing only 1% of spikes below threshold
 params['amp_th'] = 25 # 25uV 
 
 fs = 30000.0 # sample at 30kHz
