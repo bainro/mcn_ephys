@@ -233,7 +233,7 @@ for dirname in dirs:
     
     #save the metrics
     fname = os.path.join(dirname, 'UnitMetrics.csv')
-    metrics.to_csv(fname, index=True)
+    metrics.to_csv(fname, index=False)
     
     print()
     print('Number of unit metrics')
