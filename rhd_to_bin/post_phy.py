@@ -149,15 +149,15 @@ def calc_amp_cutoff(amplitudes, num_histogram_bins = 500, histogram_smoothing_va
     return fraction_missing
 
 params = {}
-params['isi_threshold'] = 0.002
-params['min_isi'] = 0.0005
-params['isi_viol_th'] = 0.4 # 40% violations
-params['presence_ratio'] = 0.5
+params['isi_threshold'] = 0.002 #### *e**-1
+params['min_isi'] = 0.0005 
+params['isi_viol_th'] = 0.4 # 0.4 # 40% violations
+params['presence_ratio'] = 0.9 
 params['firing_rate_th'] = 0.1 # 0.1Hz
 params['amp_cutoff_th'] = 0.01 # missing only 1% of spikes below threshold
 params['amp_th'] = 25 # 25uV 
 
-fs = 30000.0 # sample at 30kHz
+fs = 20000.0 # sample at 30kHz
 
 # get directories to process
 dirs = []
