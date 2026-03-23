@@ -27,6 +27,3 @@ git pull
 
 ### Switch back to the release/main branch:
 ```git checkout main```
-
-#### Contributions:
-Original [repo](https://github.com/rajatsaxena/mea/tree/main) of Rajat Saxena's.
