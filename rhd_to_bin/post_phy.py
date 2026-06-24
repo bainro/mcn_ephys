@@ -155,9 +155,9 @@ params['isi_viol_th'] = 0.4 # 0.4 # 40% violations
 params['presence_ratio'] = 0.9 
 params['firing_rate_th'] = 0.1 # 0.1Hz
 params['amp_cutoff_th'] = 0.01 # missing only 1% of spikes below threshold
-params['amp_th'] = 25 # 25uV 
+params['amp_th'] = 30 # uV 
 
-fs = 20000.0 # sample at 30kHz
+fs = 30000.0 # sample at 30kHz
 
 # get directories to process
 dirs = []
