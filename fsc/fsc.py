@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 """
-run_fast_fsc.py
+fsc.py
 
 Final compact/fast FSC runner for the fake FSC harness and similarly structured
 object-array spike-time inputs.
-
-This stripped version intentionally removes:
-    - old full cch/pred/pval/bounds compatibility reconstruction
-    - profiling fields
-    - explicit Numba warmup calls
-    - imports from old ccgutils/reference scripts
 
 For timing, run once to compile Numba functions, then time a second run.
 
